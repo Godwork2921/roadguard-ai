@@ -1,0 +1,112 @@
+version: "3.8"
+
+networks:
+  roadguard-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: roadguard-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: roadguard
+      POSTGRES_USER: roadguard
+      POSTGRES_PASSWORD: roadguard
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/scripts/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
+    networks:
+      - roadguard-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U roadguard -d roadguard"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: roadguard-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - roadguard-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  roadguard-api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: roadguard-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/roadguard
+      SPRING_DATASOURCE_USERNAME: roadguard
+      SPRING_DATASOURCE_PASSWORD: roadguard
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_FLYWAY_ENABLED: "true"
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      AI_SERVICE_URL: http://ai-service:8000
+      SERVER_PORT: 8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - roadguard-network
+
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    container_name: roadguard-ai
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://roadguard:roadguard@postgres:5432/roadguard
+      MODEL_PATH: /app/models
+      PYTHONUNBUFFERED: "1"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - roadguard-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: roadguard-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infrastructure/nginx/roadguard.conf:/etc/nginx/conf.d/roadguard.conf:ro
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      - ./infrastructure/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - roadguard-api
+    networks:
+      - roadguard-network

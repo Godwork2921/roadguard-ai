@@ -1,0 +1,44 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  scrape_timeout: 10s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files: []
+
+scrape_configs:
+  - job_name: "roadguard-api"
+    metrics_path: /actuator/prometheus
+    scrape_interval: 10s
+    static_configs:
+      - targets: ["roadguard-api:8080"]
+        labels:
+          application: "roadguard-api"
+          environment: "production"
+
+  - job_name: "ai-service"
+    metrics_path: /metrics
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["ai-service:8000"]
+        labels:
+          application: "ai-service"
+          environment: "production"
+
+  - job_name: "postgres"
+    static_configs:
+      - targets: ["postgres:5432"]
+        labels:
+          application: "postgres"
+          environment: "production"
+
+  - job_name: "redis"
+    static_configs:
+      - targets: ["redis:6379"]
+        labels:
+          application: "redis"
+          environment: "production"

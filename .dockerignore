@@ -1,0 +1,78 @@
+# Version control
+.git
+.gitignore
+.gitattributes
+.github
+
+# IDE
+.idea
+.vscode
+*.iml
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Documentation
+*.md
+*.pdf
+docs/
+
+# Node
+node_modules/
+frontend/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Java
+target/
+*.class
+*.jar
+*.war
+*.ear
+!backend/target/*.jar
+*.jar.original
+*.jar.bak
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+*.whl
+
+# Environment
+.env
+.env.local
+.env.production
+.env.development
+
+# Docker
+.dockerignore
+docker-compose*.yml
+
+# Infrastructure
+infrastructure/ssl/
+infrastructure/scripts/
+
+# Temporary
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp

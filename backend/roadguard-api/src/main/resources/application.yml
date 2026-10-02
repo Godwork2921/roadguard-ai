@@ -1,0 +1,139 @@
+spring:
+  application:
+    name: roadguard-api
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:roadguard}
+    username: ${DB_USER:roadguard}
+    password: ${DB_PASSWORD:roadguard}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 10
+      idle-timeout: 30000
+      connection-timeout: 20000
+      max-lifetime: 600000
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 50
+          fetch_size: 100
+        order_inserts: true
+        order_updates: true
+        cache:
+          use_second_level_cache: true
+          region:
+            factory_class: org.hibernate.cache.jcache.JCacheRegionFactory
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 4
+
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=500,expireAfterWrite=300s
+    redis:
+      time-to-live: 300000
+      cache-null-values: false
+
+  mail:
+    host: ${SMTP_HOST:smtp.gmail.com}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USER:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+server:
+  port: ${PORT:8080}
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+    min-response-size: 1024
+  tomcat:
+    max-threads: 200
+    max-connections: 10000
+    accept-count: 100
+    connection-timeout: 5000
+
+logging:
+  level:
+    com.roadguard: ${LOG_LEVEL:DEBUG}
+    org.springframework: WARN
+    org.hibernate: WARN
+    org.flywaydb: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %highlight(%-5level) %cyan(%logger{36}) - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/roadguard.log
+    max-size: 100MB
+    max-history: 30
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:ZGZqYWxrZmRqYWxrZmRqYWxrZmRqYWxrZmRqYWxrZmRqYWxrZmRqYWxrZmRqYWxrZg==}
+  access-token-expiration: 900000
+  refresh-token-expiration: 604800000
+
+# AI Service
+ai:
+  service:
+    url: ${AI_SERVICE_URL:http://localhost:8000}
+    timeout: 5000
+    max-retries: 3
+    retry-delay-ms: 1000
+
+# Redis Cache Keys
+cache:
+  route-analysis: route:analysis
+  hazard-active: hazard:active
+  risk-zones: risk:zones
+  user-session: user:session
+
+# OSRM Maps
+maps:
+  osrm:
+    base-url: ${OSRM_BASE_URL:http://router.project-osrm.org}
+    timeout: 5000
+
+# Firebase Cloud Messaging
+fcm:
+  service-account-key-path: ${FCM_SERVICE_ACCOUNT_KEY_PATH:}
+  project-id: ${FCM_PROJECT_ID:}
+  enabled: ${FCM_ENABLED:false}
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+  packages-to-scan: com.roadguard.roadguardapi

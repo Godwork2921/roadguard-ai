@@ -1,0 +1,105 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "database/**"
+      - "pom.xml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "database/**"
+      - "pom.xml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: "21"
+  MAVEN_OPTS: "-Xmx2g -XX:+TieredCompilation -XX:TieredStopAtLevel=1"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: roadguard_test
+          POSTGRES_USER: roadguard
+          POSTGRES_PASSWORD: roadguard
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready -U roadguard -d roadguard_test
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 3s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Run tests with Testcontainers
+        working-directory: ./backend
+        run: mvn verify -B -Dspring.profiles.active=ci
+        env:
+          TESTCONTAINERS_RYUK_DISABLED: "true"
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/roadguard_test
+          SPRING_DATASOURCE_USERNAME: roadguard
+          SPRING_DATASOURCE_PASSWORD: roadguard
+
+      - name: Build artifact
+        working-directory: ./backend
+        run: mvn package -DskipTests -B
+
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: roadguard-api
+          path: backend/roadguard-api/target/*.jar
+          retention-days: 3
+
+      - name: Notify on failure
+        if: failure() && github.ref == 'refs/heads/main'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            github.rest.issues.create({
+              owner,
+              repo,
+              title: 'Backend CI Failure',
+              body: 'Backend CI pipeline failed on main. [View run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})'
+            });
