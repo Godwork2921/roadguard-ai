@@ -4,13 +4,13 @@ on:
   push:
     branches: [main]
     paths:
-      - "ai-service/**"
-      - "requirements.txt"
+      - "apps/ai/ai-service/**"
+      - ".github/workflows/ai-service.yml"
   pull_request:
     branches: [main]
     paths:
-      - "ai-service/**"
-      - "requirements.txt"
+      - "apps/ai/ai-service/**"
+      - ".github/workflows/ai-service.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -23,6 +23,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: ./apps/ai/ai-service
 
     steps:
       - name: Checkout repository
@@ -37,31 +41,24 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('ai-service/requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('apps/ai/ai-service/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
 
       - name: Install dependencies
-        working-directory: ./ai-service
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-cov
+          pip install pytest pytest-cov flake8 mypy
 
+      # Settings live in pyproject.toml / setup.cfg so local runs and CI agree.
       - name: Run linting
-        working-directory: ./ai-service
-        run: |
-          pip install flake8
-          flake8 . --count --max-complexity=10 --max-line-length=120 --statistics
+        run: flake8 . --count --statistics
 
       - name: Run type checks
-        working-directory: ./ai-service
-        run: |
-          pip install mypy
-          mypy app/ --ignore-missing-imports
+        run: mypy app/
 
       - name: Run tests with pytest
-        working-directory: ./ai-service
         run: |
           python -m pytest tests/ \
             -v \
@@ -75,14 +72,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ai-service-test-results
-          path: ai-service/test-results.xml
+          path: apps/ai/ai-service/test-results.xml
           retention-days: 3
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
           name: ai-service-coverage
-          path: ai-service/coverage.xml
+          path: apps/ai/ai-service/coverage.xml
           retention-days: 3
 
       - name: Notify on failure

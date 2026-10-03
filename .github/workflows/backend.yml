@@ -6,20 +6,24 @@ on:
     paths:
       - "backend/**"
       - "database/**"
-      - "pom.xml"
+      - "infrastructure/scripts/init-db.sh"
+      - ".github/workflows/backend.yml"
   pull_request:
     branches: [main]
     paths:
       - "backend/**"
       - "database/**"
-      - "pom.xml"
+      - "infrastructure/scripts/init-db.sh"
+      - ".github/workflows/backend.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  JAVA_VERSION: "21"
+  # Must be >= <java.version> in backend/roadguard-api/pom.xml (currently 24),
+  # otherwise `mvn package` fails on the release bytecode.
+  JAVA_VERSION: "24"
   MAVEN_OPTS: "-Xmx2g -XX:+TieredCompilation -XX:TieredStopAtLevel=1"
 
 jobs:
@@ -52,6 +56,15 @@ jobs:
           --health-timeout 3s
           --health-retries 5
 
+      # TODO(Phase 8): add a Kafka service and integration tests covering
+      # outbox publishing and idempotent consumers.
+      # TODO(Phase 4): add a Keycloak service and OIDC token-validation tests.
+
+    defaults:
+      run:
+        # pom.xml lives in the module directory, not in backend/.
+        working-directory: ./backend/roadguard-api
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -67,28 +80,30 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          key: ${{ runner.os }}-maven-${{ hashFiles('backend/roadguard-api/pom.xml') }}
           restore-keys: |
             ${{ runner.os }}-maven-
 
-      - name: Run tests with Testcontainers
-        working-directory: ./backend
-        run: mvn verify -B -Dspring.profiles.active=ci
+      - name: Verify
+        run: mvn verify -B
         env:
           TESTCONTAINERS_RYUK_DISABLED: "true"
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/roadguard_test
-          SPRING_DATASOURCE_USERNAME: roadguard
-          SPRING_DATASOURCE_PASSWORD: roadguard
+          DB_HOST: localhost
+          DB_PORT: "5432"
+          DB_NAME: roadguard_test
+          DB_USER: roadguard
+          DB_PASSWORD: roadguard
+          REDIS_HOST: localhost
+          REDIS_PORT: "6379"
 
-      - name: Build artifact
-        working-directory: ./backend
+      - name: Package
         run: mvn package -DskipTests -B
 
       - name: Upload JAR artifact
         uses: actions/upload-artifact@v4
         with:
           name: roadguard-api
-          path: backend/roadguard-api/target/*.jar
+          path: backend/roadguard-api/target/roadguard-api-*.jar
           retention-days: 3
 
       - name: Notify on failure

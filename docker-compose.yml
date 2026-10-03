@@ -1,4 +1,20 @@
-version: "3.8"
+# =============================================================================
+# RoadGuard AI - base stack
+# =============================================================================
+#   cp .env.example .env
+#   docker compose up -d
+#
+# Layering:
+#   docker-compose.yml              base definitions for every service
+#   docker-compose.dev.yml          hot reload, debug ports, verbose logs
+#   docker-compose.prod.yml         resource limits, no bind mounts, replicas
+#
+# Observability is behind the `observability` profile so the core stack starts
+# fast:
+#   docker compose --profile observability up -d
+# =============================================================================
+
+name: ${COMPOSE_PROJECT_NAME:-roadguard}
 
 networks:
   roadguard-network:
@@ -6,39 +22,71 @@ networks:
 
 volumes:
   postgres-data:
-    driver: local
   redis-data:
-    driver: local
+  kafka-data:
+  keycloak-data:
+  minio-data:
+  grafana-data:
+  prometheus-data:
+  loki-data:
+  tempo-data:
+  certbot-www:
 
+# =============================================================================
+# PostgreSQL + PostGIS  - durable source of truth
+# =============================================================================
 services:
   postgres:
     image: postgis/postgis:16-3.4
     container_name: roadguard-postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
     environment:
-      POSTGRES_DB: roadguard
-      POSTGRES_USER: roadguard
-      POSTGRES_PASSWORD: roadguard
+      POSTGRES_DB: ${POSTGRES_DB:-roadguard}
+      POSTGRES_USER: ${POSTGRES_USER:-roadguard}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-roadguard}
+      KEYCLOAK_DB: ${KEYCLOAK_DB:-keycloak}
+      READONLY_ROLE: ${READONLY_ROLE:-roadguard_readonly}
+      # Required for pg_stat_statements; without it the extension is inert.
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - max_connections=200
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./database/scripts/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
+      # Runs once on first boot: creates extensions + the Keycloak database.
+      # All TABLES are owned by Flyway, not by this script.
+      - ./infrastructure/scripts/init-db.sh:/docker-entrypoint-initdb.d/10-init-db.sh:ro
     networks:
       - roadguard-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U roadguard -d roadguard"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-roadguard} -d ${POSTGRES_DB:-roadguard}"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 30s
 
+# =============================================================================
+# Redis - live / ephemeral state only
+# =============================================================================
   redis:
     image: redis:7-alpine
     container_name: roadguard-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "${REDIS_HOST_PORT:-6379}:6379"
+    # maxmemory-policy noeviction: this instance backs the live driver-position
+    # GEO set and rate-limit counters. Silently evicting those would corrupt
+    # live state, so callers must handle OOM instead.
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 512mb
+      --maxmemory-policy noeviction
     volumes:
       - redis-data:/data
     networks:
@@ -50,63 +98,320 @@ services:
       retries: 5
       start_period: 10s
 
+# =============================================================================
+# Kafka - asynchronous domain events (KRaft, single node)
+# =============================================================================
+  kafka:
+    image: apache/kafka:3.9.0
+    container_name: roadguard-kafka
+    restart: unless-stopped
+    ports:
+      - "${KAFKA_HOST_PORT:-9092}:9092"
+    environment:
+      CLUSTER_ID: ${KAFKA_CLUSTER_ID:-MkU3OEVBNTcwNTJENDM2Qk}
+      KAFKA_NODE_ID: ${KAFKA_NODE_ID:-1}
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      # Single node: replication factor must be 1 or topic creation blocks.
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: ${KAFKA_NUM_PARTITIONS:-3}
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: ${KAFKA_AUTO_CREATE_TOPICS_ENABLE:-true}
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    networks:
+      - roadguard-network
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+
+# =============================================================================
+# Keycloak - authoritative identity / OIDC provider
+# =============================================================================
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: roadguard-keycloak
+    restart: unless-stopped
+    # Keycloak's own port is 8080 internally; published on 8081 by default to
+    # avoid colliding with the backend.
+    command: start-dev --import-realm
+    ports:
+      - "${KEYCLOAK_HOST_PORT:-8081}:8080"
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${KEYCLOAK_DB:-keycloak}
+      KC_DB_USERNAME: ${POSTGRES_USER:-roadguard}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-roadguard}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_HEALTH_ENABLED: "true"
+      KC_HTTP_ENABLED: "true"
+    volumes:
+      - keycloak-data:/opt/keycloak/data
+      # Realm + client definitions. Imported on first boot only.
+      - ./infrastructure/keycloak:/opt/keycloak/data/import:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - roadguard-network
+    healthcheck:
+      # /health is served on the management port (9000) in Keycloak 25+.
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\\nHost: localhost\\nConnection: close\\n\\n' >&3 && cat <&3 | grep -q '\"status\": \"UP\"'"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+
+# =============================================================================
+# MinIO - S3-compatible object storage for media
+# =============================================================================
+  minio:
+    # S3-compatible object storage. MinIO is the intended server; the image is
+    # overridable so a mirror or another S3-compatible server can be used where
+    # Docker Hub is unreachable (see S3_IMAGE in .env.example).
+    image: ${S3_IMAGE:-minio/minio:RELEASE.2024-10-13T13-34-11Z}
+    container_name: roadguard-minio
+    restart: unless-stopped
+    # `--console-address` is a MinIO flag. Override for a server that does not
+    # understand it, or set S3_SERVER_ARGS to empty to let the image use its own
+    # built-in entrypoint (no `:-` here, so an explicitly empty value is honoured).
+    command: ${S3_SERVER_ARGS-server /data --console-address ":9001"}
+    ports:
+      - "${MINIO_HOST_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_HOST_PORT:-9001}:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-roadguard}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-roadguard123}
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-roadguard}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-roadguard123}
+    volumes:
+      - minio-data:/data
+    networks:
+      - roadguard-network
+
+  # One-shot bucket provisioning.
+  #
+  # Logic lives in infrastructure/scripts/init-s3.sh rather than an inline
+  # entrypoint: nesting a shell program inside YAML + `sh -c` + Compose `$$`
+  # escaping is fragile (an inner single-quoted string silently suppresses
+  # expansion and yields a literal "$S3_ENDPOINT").
+  #
+  # Uses the AWS CLI rather than `mc` because it speaks plain S3 and is not tied
+  # to one server implementation.
+  minio-init:
+    image: ${S3_INIT_IMAGE:-amazon/aws-cli:2.22.15}
+    container_name: roadguard-minio-init
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_started
+    networks:
+      - roadguard-network
+    environment:
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-roadguard}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-roadguard123}
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_EC2_METADATA_DISABLED: "true"
+      S3_ENDPOINT: http://minio:9000
+      S3_INIT_TIMEOUT: ${S3_INIT_TIMEOUT:-120}
+      BUCKETS: ${MINIO_BUCKET_HAZARDS:-roadguard-hazards} ${MINIO_BUCKET_AI:-roadguard-ai}
+    volumes:
+      - ./infrastructure/scripts/init-s3.sh:/init-s3.sh:ro
+    entrypoint: ["/bin/sh", "/init-s3.sh"]
+
+# =============================================================================
+# Backend - Spring Boot modular monolith
+# =============================================================================
   roadguard-api:
     build:
-      context: ./backend
+      # Context must be the module directory: that is where pom.xml lives.
+      context: ./backend/roadguard-api
       dockerfile: Dockerfile
+    image: roadguard/roadguard-api:1.0.0
     container_name: roadguard-api
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "${BACKEND_HOST_PORT:-8080}:${SERVER_PORT:-8080}"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/roadguard
-      SPRING_DATASOURCE_USERNAME: roadguard
-      SPRING_DATASOURCE_PASSWORD: roadguard
-      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
-      SPRING_FLYWAY_ENABLED: "true"
-      SPRING_REDIS_HOST: redis
-      SPRING_REDIS_PORT: 6379
+      # Matches the placeholders declared in application.yml
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-roadguard}
+      DB_USER: ${POSTGRES_USER:-roadguard}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-roadguard}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      PORT: ${SERVER_PORT:-8080}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      JWT_SECRET: ${JWT_SECRET:-}
       AI_SERVICE_URL: http://ai-service:8000
-      SERVER_PORT: 8080
+      OSRM_BASE_URL: ${OSRM_BASE_URL:-http://router.project-osrm.org}
+      FCM_ENABLED: ${FCM_ENABLED:-false}
+      FCM_PROJECT_ID: ${FCM_PROJECT_ID:-}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      # Identity provider (Phase 4 wiring)
+      KEYCLOAK_ISSUER_URL: http://keycloak:8080/realms/${KEYCLOAK_REALM:-roadguard}
+      KEYCLOAK_AUDIENCE: ${KEYCLOAK_AUDIENCE:-roadguard-api}
+      # Event backbone (Phase 8 wiring)
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      # Object storage (Phase 6 wiring)
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-roadguard}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-roadguard123}
+      S3_BUCKET_HAZARDS: ${MINIO_BUCKET_HAZARDS:-roadguard-hazards}
+      S3_BUCKET_AI: ${MINIO_BUCKET_AI:-roadguard-ai}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      # Buckets must exist before the backend can accept an upload.
+      minio-init:
+        condition: service_completed_successfully
     networks:
       - roadguard-network
 
+# =============================================================================
+# AI service - FastAPI, independently deployable
+# =============================================================================
   ai-service:
     build:
-      context: ./ai-service
+      context: ./apps/ai/ai-service
       dockerfile: Dockerfile
+    image: roadguard/ai-service:1.0.0
     container_name: roadguard-ai
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "${AI_SERVICE_HOST_PORT:-8000}:8000"
     environment:
-      DATABASE_URL: postgresql://roadguard:roadguard@postgres:5432/roadguard
-      MODEL_PATH: /app/models
+      MODEL_PATH: ${AI_MODEL_PATH:-/app/models/hazard_detection.tflite}
+      CONFIDENCE_THRESHOLD: ${AI_CONFIDENCE_THRESHOLD:-0.8}
+      REDIS_URL: redis://redis:6379
+      LOG_LEVEL: ${AI_LOG_LEVEL:-INFO}
+      CORS_ORIGINS: ${AI_CORS_ORIGINS:-http://localhost:3000,http://localhost:5173}
       PYTHONUNBUFFERED: "1"
     depends_on:
-      postgres:
+      redis:
         condition: service_healthy
     networks:
       - roadguard-network
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/api/v1/health').status==200 else 1)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
 
+# =============================================================================
+# Nginx - TLS termination, SPA hosting, reverse proxy
+# =============================================================================
   nginx:
     image: nginx:alpine
     container_name: roadguard-nginx
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
     volumes:
       - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./infrastructure/nginx/roadguard.conf:/etc/nginx/conf.d/roadguard.conf:ro
-      - ./frontend/dist:/usr/share/nginx/html:ro
+      - ./apps/web/authority-dashboard/dist:/usr/share/nginx/html:ro
       - ./infrastructure/ssl:/etc/nginx/ssl:ro
     depends_on:
       - roadguard-api
+    networks:
+      - roadguard-network
+
+# =============================================================================
+# Observability  (opt-in: docker compose --profile observability up -d)
+# =============================================================================
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: roadguard-prometheus
+    profiles: ["observability"]
+    restart: unless-stopped
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - roadguard-network
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: roadguard-grafana
+    profiles: ["observability"]
+    restart: unless-stopped
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - roadguard-network
+
+  loki:
+    image: grafana/loki:3.2.1
+    container_name: roadguard-loki
+    profiles: ["observability"]
+    restart: unless-stopped
+    command: -config.file=/etc/loki/config.yaml
+    ports:
+      - "${LOKI_PORT:-3100}:3100"
+    volumes:
+      - ./infrastructure/monitoring/loki.yaml:/etc/loki/config.yaml:ro
+      - loki-data:/loki
+    networks:
+      - roadguard-network
+
+  tempo:
+    image: grafana/tempo:2.6.1
+    container_name: roadguard-tempo
+    profiles: ["observability"]
+    restart: unless-stopped
+    command: -config.file=/etc/tempo/tempo.yaml
+    ports:
+      - "${TEMPO_PORT:-3200}:3200"
+    volumes:
+      - ./infrastructure/monitoring/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    networks:
+      - roadguard-network
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.114.0
+    container_name: roadguard-otel-collector
+    profiles: ["observability"]
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol/config.yaml"]
+    ports:
+      - "${OTEL_COLLECTOR_OTLP_GRPC_PORT:-4317}:4317"
+      - "${OTEL_COLLECTOR_OTLP_HTTP_PORT:-4318}:4318"
+    volumes:
+      - ./infrastructure/monitoring/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    depends_on:
+      - tempo
+      - loki
     networks:
       - roadguard-network

@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "roadguard-ai-service"
+version = "1.0.0"
+description = "RoadGuard AI - computer vision hazard detection and anomaly analysis"
+requires-python = ">=3.11"
+# Runtime dependencies are pinned in requirements.txt, which is what the Docker
+# build and CI consume. They are intentionally not duplicated here yet: the
+# lock story is settled in the ML/packaging phase, and two sources of truth for
+# versions would drift.
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "flake8>=6.1.0",
+    "mypy>=1.8.0",
+]
+
+[tool.setuptools]
+packages = ["app"]
+
+# -----------------------------------------------------------------------------
+# pytest
+# -----------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra --strict-markers"
+asyncio_mode = "auto"
+filterwarnings = ["error::DeprecationWarning:app.*"]
+
+# -----------------------------------------------------------------------------
+# mypy
+# -----------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+no_implicit_optional = true
+# Third-party inference packages ship incomplete stubs; keep our own code typed.
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["tensorflow.*", "cv2.*", "PIL.*"]
+ignore_missing_imports = true
+
+# -----------------------------------------------------------------------------
+# coverage
+# -----------------------------------------------------------------------------
+[tool.coverage.run]
+source = ["app"]
+omit = ["*/tests/*", "*/__main__.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+# A model-free service is expected to leave inference uncovered until the
+# trained weights land (Phase 7). This floor prevents silent regression.
+fail_under = 40

@@ -89,7 +89,11 @@ $RECYCLE.BIN/
 .env.development
 
 # Logs
+# Rotated files are named roadguard.log.2026-07-14.0.gz, which `*.log` does not
+# match - hence the extra patterns.
 *.log
+*.log.*
+*.gz
 logs/
 log/
 
@@ -109,26 +113,35 @@ database/backups/
 *.sql.bak
 
 # Frontend
-frontend/dist/
-frontend/.cache/
-frontend/storybook-static/
+apps/web/*/dist/
+apps/web/*/.cache/
+apps/web/*/storybook-static/
+apps/web/*/.vite/
+*.tsbuildinfo
+# TypeScript emits these beside the .ts sources they are compiled from; the
+# .ts files are the source of truth.
+vite.config.js
+vite.config.d.ts
 
 # AI Service
-ai-service/models/*.h5
-ai-service/models/*.pkl
-ai-service/models/*.onnx
-ai-service/__pycache__/
-ai-service/.venv/
+apps/ai/ai-service/models/*.h5
+apps/ai/ai-service/models/*.pkl
+apps/ai/ai-service/models/*.onnx
+apps/ai/ai-service/models/*.tflite
+apps/ai/ai-service/*.xml          # pytest-cov / junit output
+apps/ai/ai-service/.coverage
 
-# Android
-android/.gradle/
-android/build/
-android/local.properties
-android/.idea/
-android/captures/
-android/.externalNativeBuild/
-android/*.apk
-android/*.aab
+# Driver mobile app
+apps/mobile/driver-app/.gradle/
+apps/mobile/driver-app/build/
+apps/mobile/driver-app/app/build/
+apps/mobile/driver-app/local.properties
+apps/mobile/driver-app/.idea/
+apps/mobile/driver-app/captures/
+apps/mobile/driver-app/.externalNativeBuild/
+apps/mobile/driver-app/*.apk
+apps/mobile/driver-app/*.aab
+apps/mobile/driver-app/app/schemas/
 
 # Temp
 tmp/

@@ -1,343 +1,256 @@
--- ============================================================================
--- RoadGuard AI - Development Seed Data
--- ============================================================================
+-- =============================================================================
+-- RoadGuard AI - Development seed data
+-- =============================================================================
+-- Run AFTER Flyway (V1__initial_schema.sql) has applied.
+--
+--   docker compose exec -T postgres psql -U roadguard -d roadguard \
+--       < database/scripts/seed.sql
+--
+-- This script is IDEMPOTENT: safe to run repeatedly.
+-- It targets the `public` schema because V1 creates all tables unqualified.
+--
+-- VALIDATED against V1__initial_schema.sql. Column names here must stay in sync
+-- with that migration, or this file will fail loudly - that is intentional.
+--
+-- Known gap: V1 seeds an admin with role='ADMINISTRATOR', but the Java enum
+-- UserRole only declares DRIVER, PASSENGER, AUTHORITY_OFFICER. See
+-- docs/security/known-issues.md. This file therefore only seeds roles that
+-- actually exist in the enum.
+-- =============================================================================
+
+\set ON_ERROR_STOP on
 
 BEGIN;
 
--- ---------------------------------------------------------------------------
+-- -----------------------------------------------------------------------------
 -- Users
--- ---------------------------------------------------------------------------
-INSERT INTO roadguard.users (id, email, password_hash, full_name, role, phone, avatar_url, is_active, created_at, updated_at)
+-- Password for every demo account below is the bcrypt hash of: RoadGuard@2026
+-- CHANGE THESE before any shared environment.
+-- -----------------------------------------------------------------------------
+INSERT INTO users (email, password_hash, first_name, last_name, phone, is_active,
+                   is_email_verified, region, vehicle_info, role)
 VALUES
-    ('a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-     'admin@roadguard.ai',
-     '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
-     'Alice Kamau',
-     'ADMIN',
-     '+254712345678',
-     'https://ui-avatars.com/api/?name=Alice+Kamau&background=1a73e8&color=fff',
-     TRUE,
-     NOW() - INTERVAL '90 days',
-     NOW() - INTERVAL '2 days'),
+    ('driver@roadguard.ai',
+     '$2a$10$5JHPvyHhzGHrOBhTGxvOKeVsKUcpZbNPDSJXOT9cpWBBPnMUdNvxu',
+     'Demo', 'Driver', '+251911000001', TRUE, TRUE, 'Addis Ababa',
+     'Bluebird EV - AA-12345', 'DRIVER'),
 
-    ('b2c3d4e5-f6a7-8901-bcde-f12345678901',
-     'john.driver@roadguard.ai',
-     '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
-     'John Mwangi',
-     'DRIVER',
-     '+254723456789',
-     'https://ui-avatars.com/api/?name=John+Mwangi&background=34a853&color=fff',
-     TRUE,
-     NOW() - INTERVAL '60 days',
-     NOW() - INTERVAL '1 day'),
+    ('driver2@roadguard.ai',
+     '$2a$10$5JHPvyHhzGHrOBhTGxvOKeVsKUcpZbNPDSJXOT9cpWBBPnMUdNvxu',
+     'Sara', 'Mekonnen', '+251911000002', TRUE, TRUE, 'Addis Ababa',
+     'Minibus - AA-88221', 'DRIVER'),
 
-    ('c3d4e5f6-a7b8-9012-cdef-123456789012',
-     'jane.waithaka@roadguard.ai',
-     '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
-     'Jane Waithaka',
-     'DRIVER',
-     '+254734567890',
-     'https://ui-avatars.com/api/?name=Jane+Waithaka&background=34a853&color=fff',
-     TRUE,
-     NOW() - INTERVAL '45 days',
-     NOW() - INTERVAL '12 hours'),
+    ('officer@roadguard.ai',
+     '$2a$10$5JHPvyHhzGHrOBhTGxvOKeVsKUcpZbNPDSJXOT9cpWBBPnMUdNvxu',
+     'Demo', 'Officer', '+251911000003', TRUE, TRUE, 'Addis Ababa',
+     NULL, 'AUTHORITY_OFFICER')
+ON CONFLICT (email) DO NOTHING;
 
-    ('d4e5f6a7-b8c9-0123-defa-234567890123',
-     'authority@nairobi.go.ke',
-     '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy',
-     'Peter Ochieng',
-     'AUTHORITY',
-     '+254745678901',
-     'https://ui-avatars.com/api/?name=Peter+Ochieng&background=ea4335&color=fff',
-     TRUE,
-     NOW() - INTERVAL '30 days',
-     NOW() - INTERVAL '3 days');
+-- -----------------------------------------------------------------------------
+-- Permissions granted to the authority officer
+-- (permission rows themselves are seeded by V1)
+-- -----------------------------------------------------------------------------
+INSERT INTO user_permissions (user_id, permission_id)
+SELECT u.id, p.id
+FROM users u
+JOIN permissions p
+  ON p.name IN ('VIEW_HAZARDS', 'VERIFY_HAZARD', 'ASSIGN_HAZARD',
+                'RESOLVE_HAZARD', 'VIEW_ANALYTICS')
+WHERE u.email = 'officer@roadguard.ai'
+ON CONFLICT DO NOTHING;
 
--- ---------------------------------------------------------------------------
--- Hazard Reports
--- ---------------------------------------------------------------------------
-INSERT INTO roadguard.hazards (id, user_id, hazard_type, severity, title, description,
-                               latitude, longitude, location_name, images, status,
-                               reported_at, resolved_at, created_at, updated_at)
-VALUES
-    ('e5f6a7b8-c9d0-1234-efab-345678901234',
-     'b2c3d4e5-f6a7-8901-bcde-f12345678901',
-     'POTHOLE', 'HIGH',
-     'Deep pothole on Mombasa Road',
-     'Large pothole approximately 1.5m wide and 30cm deep near the JKIA exit. Caused multiple tire blowouts this week.',
-     -1.3192, 36.9275, 'Mombasa Road, near JKIA exit',
-     ARRAY['https://storage.roadguard.ai/hazards/pothole-mombasa-rd-01.jpg'],
-     'REPORTED',
-     NOW() - INTERVAL '7 days',
-     NULL,
-     NOW() - INTERVAL '7 days',
-     NOW() - INTERVAL '6 days'),
+-- -----------------------------------------------------------------------------
+-- Vehicles
+-- -----------------------------------------------------------------------------
+INSERT INTO vehicles (user_id, plate_number, make, model, year, color,
+                      vehicle_type, is_default)
+SELECT u.id, 'AA-12345', 'Bluebird', 'EV', 2023, 'Blue', 'CAR', TRUE
+FROM users u WHERE u.email = 'driver@roadguard.ai'
+  AND NOT EXISTS (SELECT 1 FROM vehicles v WHERE v.user_id = u.id);
 
-    ('f6a7b8c9-d0e1-2345-fabc-456789012345',
-     'c3d4e5f6-a7b8-9012-cdef-123456789012',
-     'FLOODING', 'CRITICAL',
-     'Flash flooding on Haile Selassie Avenue',
-     'Severe flooding after heavy rains. Water levels reached 1.2m. Multiple vehicles stranded. Road impassable.',
-     -1.2833, 36.8217, 'Haile Selassie Avenue, CBD',
-     ARRAY['https://storage.roadguard.ai/hazards/flood-haile-selassie-01.jpg',
-           'https://storage.roadguard.ai/hazards/flood-haile-selassie-02.jpg'],
-     'VERIFIED',
-     NOW() - INTERVAL '14 days',
-     NOW() - INTERVAL '13 days',
-     NOW() - INTERVAL '14 days',
-     NOW() - INTERVAL '13 days'),
+INSERT INTO vehicles (user_id, plate_number, make, model, year, color,
+                      vehicle_type, is_default)
+SELECT u.id, 'AA-88221', 'Toyota', 'Coaster', 2021, 'White', 'BUS', TRUE
+FROM users u WHERE u.email = 'driver2@roadguard.ai'
+  AND NOT EXISTS (SELECT 1 FROM vehicles v WHERE v.user_id = u.id);
 
-    ('a7b8c9d0-e1f2-3456-abcd-567890123456',
-     'b2c3d4e5-f6a7-8901-bcde-f12345678901',
-     'ROAD_DAMAGE', 'MEDIUM',
-     'Road surface deterioration on Waiyaki Way',
-     'Multiple cracks and surface degradation extending 200m along the left lane near the ABC Place junction.',
-     -1.2603, 36.7833, 'Waiyaki Way, near ABC Place',
-     ARRAY['https://storage.roadguard.ai/hazards/road-damage-waiyaki-01.jpg'],
-     'REPORTED',
-     NOW() - INTERVAL '5 days',
-     NULL,
-     NOW() - INTERVAL '5 days',
-     NOW() - INTERVAL '4 days'),
+-- -----------------------------------------------------------------------------
+-- Hazards around Addis Ababa (Bole / Meskel / Piazza corridor)
+-- Note: the `location` GEOMETRY is populated from lat/lng so the GiST index is
+-- always consistent with the scalar columns the entity also reads.
+-- -----------------------------------------------------------------------------
+--
+-- `location` is built inline from (longitude, latitude) - note the argument
+-- order, ST_MakePoint takes lon first - so the GiST index can never drift out of
+-- sync with the scalar columns. `reported_by`/`verified_by` are UUID foreign
+-- keys, so the human-readable email in the VALUES list is resolved through a
+-- join against `users` rather than being cast.
+INSERT INTO hazards (hazard_type, severity, status, latitude, longitude, location,
+                     description, address, confidence_score,
+                     reported_by, verified_by, verified_at,
+                     is_ai_detected, is_verified, source, region, road_name)
+SELECT seed.hazard_type,
+       seed.severity,
+       seed.status,
+       seed.latitude,
+       seed.longitude,
+       ST_SetSRID(ST_MakePoint(seed.longitude, seed.latitude), 4326),
+       seed.description,
+       seed.address,
+       seed.confidence_score,
+       reporter.id,
+       CASE WHEN seed.is_verified THEN verifier.id END,
+       CASE WHEN seed.is_verified THEN NOW() END,
+       seed.is_ai_detected,
+       seed.is_verified,
+       seed.source,
+       seed.region,
+       seed.road_name
+FROM (VALUES
+    ('POTHOLE', 'HIGH', 'VERIFIED',  9.0192::double precision, 38.7525::double precision,
+     'Severe pothole cluster on the left lane, ~2m wide',
+     'Bole Road', 0.91::double precision, 'officer@roadguard.ai',
+     FALSE, TRUE, 'MANUAL', 'Addis Ababa', 'Bole Road'),
 
-    ('b8c9d0e1-f2a3-4567-bcde-678901234567',
-     'c3d4e5f6-a7b8-9012-cdef-123456789012',
-     'ACCIDENT', 'CRITICAL',
-     'Multi-vehicle collision on Thika Road',
-     'Chain collision involving 5 vehicles near the GSU roundabout. Three injuries reported. Two lanes blocked.',
-     -1.2189, 36.8875, 'Thika Road, GSU roundabout',
-     ARRAY['https://storage.roadguard.ai/hazards/accident-thika-rd-01.jpg'],
-     'RESOLVED',
-     NOW() - INTERVAL '2 days',
-     NOW() - INTERVAL '1 day',
-     NOW() - INTERVAL '2 days',
-     NOW() - INTERVAL '1 day'),
+    ('FLOOD', 'HIGH', 'REPORTED',  8.9780, 38.8180,
+     'Waterlogging across both lanes after rainfall, ~30cm deep',
+     'Meskel Square', 0.87::double precision, 'driver@roadguard.ai',
+     FALSE, FALSE, 'MANUAL', 'Addis Ababa', 'Meskel Street'),
 
-    ('c9d0e1f2-a3b4-5678-cdef-789012345678',
-     'b2c3d4e5-f6a7-8901-bcde-f12345678901',
-     'FALLEN_DEBRIS', 'LOW',
-     'Tree branch blocking Langata Road',
-     'Large tree branch fell across the service lane near the Carnivore grounds. Single lane affected.',
-     -1.3333, 36.7500, 'Langata Road, near Carnivore',
-     ARRAY['https://storage.roadguard.ai/hazards/debris-langata-01.jpg'],
-     'RESOLVED',
-     NOW() - INTERVAL '1 day',
-     NOW() - INTERVAL '12 hours',
-     NOW() - INTERVAL '1 day',
-     NOW() - INTERVAL '12 hours');
+    ('ROAD_BLOCKAGE', 'MEDIUM', 'ASSIGNED', 9.0250, 38.7360,
+     'Fallen branches partially blocking the shoulder',
+     'Piazza Area', 0.74::double precision, 'driver2@roadguard.ai',
+     FALSE, TRUE, 'MANUAL', 'Addis Ababa', 'Piazza Road'),
 
--- ---------------------------------------------------------------------------
--- Risk Zones
--- ---------------------------------------------------------------------------
-INSERT INTO roadguard.risk_zones (id, name, description, risk_level, zone_geometry,
-                                  hazard_type, incident_count, last_incident_at, created_at, updated_at)
-VALUES
-    ('d0e1f2a3-b4c5-6789-defa-890123456789',
-     'Mombasa Road Corridor',
-     'High-risk corridor between JKIA and CBD. Frequent potholes and accidents during peak hours.',
-     'HIGH',
-     ST_GeomFromText('POLYGON((36.9200 -1.3100, 36.9400 -1.3100, 36.9400 -1.3300, 36.9200 -1.3300, 36.9200 -1.3100))', 4326),
-     'POTHOLE',
-     47,
-     NOW() - INTERVAL '2 days',
-     NOW() - INTERVAL '90 days',
-     NOW() - INTERVAL '7 days'),
+    ('ROAD_CRACK', 'LOW', 'REPORTED', 9.0420, 38.7100,
+     'Longitudinal crack, no immediate action required',
+     'Kazanchis', NULL::double precision, 'driver@roadguard.ai',
+     FALSE, FALSE, 'MANUAL', 'Addis Ababa', 'Kazanchis Road'),
 
-    ('e1f2a3b4-c5d6-7890-efab-901234567890',
-     'CBD Flood Zone',
-     'Low-lying areas in Nairobi CBD prone to flash flooding during heavy rains.',
-     'CRITICAL',
-     ST_GeomFromText('POLYGON((36.8150 -1.2780, 36.8300 -1.2780, 36.8300 -1.2900, 36.8150 -1.2900, 36.8150 -1.2780))', 4326),
-     'FLOODING',
-     23,
-     NOW() - INTERVAL '3 days',
-     NOW() - INTERVAL '90 days',
-     NOW() - INTERVAL '7 days'),
+    ('POTHOLE', 'MEDIUM', 'DETECTED', 9.0110, 38.7600,
+     'Detected from dashcam frame, pending human verification',
+     'Airport Expressway', 0.83::double precision, NULL::varchar,
+     TRUE, FALSE, 'AI', 'Addis Ababa', 'Airport Expressway')
+) AS seed(hazard_type, severity, status, latitude, longitude, description,
+          address, confidence_score, reported_by_email, is_ai_detected,
+          is_verified, source, region, road_name)
+LEFT JOIN users reporter ON reporter.email = seed.reported_by_email
+LEFT JOIN users verifier ON verifier.email = 'officer@roadguard.ai'
+WHERE NOT EXISTS (
+    SELECT 1 FROM hazards h
+    WHERE h.latitude = seed.latitude AND h.longitude = seed.longitude
+);
 
-    ('f2a3b4c5-d6e7-8901-fabc-012345678901',
-     'Thika Road Accident Zone',
-     'High-speed section near GSU roundabout with frequent chain collisions.',
-     'HIGH',
-     ST_GeomFromText('POLYGON((36.8820 -1.2150, 36.8950 -1.2150, 36.8950 -1.2250, 36.8820 -1.2250, 36.8820 -1.2150))', 4326),
-     'ACCIDENT',
-     31,
-     NOW() - INTERVAL '2 days',
-     NOW() - INTERVAL '90 days',
-     NOW() - INTERVAL '7 days'),
+-- -----------------------------------------------------------------------------
+-- Risk zones
+--
+-- The polygon is derived from centre + radius at insert time. ST_Buffer is
+-- given a geography rather than a geometry because radius_meters is in metres;
+-- buffering the raw 4326 geometry would interpret the radius as degrees and
+-- produce a polygon roughly 111320x too large. The result is cast back to
+-- geometry to match the column's GEOMETRY(POLYGON, 4326) type.
+-- -----------------------------------------------------------------------------
+INSERT INTO risk_zones (name, description, center_lat, center_lng, radius_meters,
+                        risk_level, zone_geometry, hazard_count, incident_count,
+                        is_active, region, color_code)
+SELECT seed.name,
+       seed.description,
+       seed.center_lat,
+       seed.center_lng,
+       seed.radius_meters,
+       seed.risk_level,
+       ST_Buffer(
+           ST_SetSRID(ST_MakePoint(seed.center_lng, seed.center_lat), 4326)::geography,
+           seed.radius_meters
+       )::geometry,
+       seed.hazard_count,
+       seed.incident_count,
+       TRUE,
+       seed.region,
+       seed.color_code
+FROM (VALUES
+    ('Bole Road Corridor', 'Repeated pothole and surface-damage reports',
+     9.0192::double precision, 38.7525::double precision, 1200.0::double precision,
+     'HIGH', 14, 31, 'Addis Ababa', '#DC2626'),
 
-    ('a3b4c5d6-e7f8-9012-abcd-123456789012',
-     'Waiyaki Way Construction Zone',
-     'Ongoing road construction with reduced lanes and uneven surfaces.',
-     'MEDIUM',
-     ST_GeomFromText('POLYGON((36.7780 -1.2560, 36.7880 -1.2560, 36.7880 -1.2650, 36.7780 -1.2650, 36.7780 -1.2560))', 4326),
-     'ROAD_DAMAGE',
-     15,
-     NOW() - INTERVAL '5 days',
-     NOW() - INTERVAL '60 days',
-     NOW() - INTERVAL '14 days'),
+    ('Meskel Interchange', 'Flooding and congestion hotspot',
+     8.9780, 38.8180, 900.0,
+     'HIGH', 9, 22, 'Addis Ababa', '#EA580C'),
 
-    ('b4c5d6e7-f8a9-0123-bcde-234567890123',
-     'Langata Road Low-Risk Zone',
-     'Generally well-maintained road with minimal incidents.',
-     'LOW',
-     ST_GeomFromText('POLYGON((36.7450 -1.3280, 36.7580 -1.3280, 36.7580 -1.3400, 36.7450 -1.3400, 36.7450 -1.3280))', 4326),
-     'FALLEN_DEBRIS',
-     4,
-     NOW() - INTERVAL '1 day',
-     NOW() - INTERVAL '30 days',
-     NOW() - INTERVAL '14 days');
+    ('Piazza Zone', 'Blockage and pedestrian-conflict area',
+     9.0250, 38.7360, 700.0,
+     'MEDIUM', 5, 12, 'Addis Ababa', '#F59E0B')
+) AS seed(name, description, center_lat, center_lng, radius_meters,
+          risk_level, hazard_count, incident_count, region, color_code)
+WHERE NOT EXISTS (
+    SELECT 1 FROM risk_zones rz WHERE rz.name = seed.name
+);
 
--- ---------------------------------------------------------------------------
--- Trip Records
--- ---------------------------------------------------------------------------
-INSERT INTO roadguard.trips (id, user_id, start_location, end_location, start_lat, start_lng,
-                             end_lat, end_lng, distance_km, duration_minutes, average_speed,
-                             route_geometry, started_at, ended_at, score, hazards_encountered,
-                             created_at)
-VALUES
-    ('c5d6e7f8-a9b0-1234-cdef-345678901234',
-     'b2c3d4e5-f6a7-8901-bcde-f12345678901',
-     'Kiambu Road', 'Mombasa Road, JKIA',
-     -1.1800, 36.8700, -1.3192, 36.9275,
-     18.5, 45, 24.7,
-     ST_GeomFromText('LINESTRING(36.8700 -1.1800, 36.8850 -1.2100, 36.9000 -1.2500, 36.9200 -1.2900, 36.9275 -1.3192)', 4326),
-     NOW() - INTERVAL '3 days' - INTERVAL '45 minutes',
-     NOW() - INTERVAL '3 days',
-     72.5,
-     2,
-     NOW() - INTERVAL '3 days'),
+-- -----------------------------------------------------------------------------
+-- A completed trip with a GPS trail
+-- -----------------------------------------------------------------------------
+INSERT INTO trips (driver_id, start_point, end_point, start_address, end_address,
+                   start_time, end_time, status, risk_score, total_distance,
+                   average_speed, max_speed, is_offline, is_synced)
+SELECT u.id,
+       ST_SetSRID(ST_MakePoint(38.7460, 9.0300), 4326),
+       ST_SetSRID(ST_MakePoint(38.7600, 9.0100), 4326),
+       'Addis Ababa Bole', 'Piazza',
+       NOW() - INTERVAL '1 day', NOW() - INTERVAL '1 day' + INTERVAL '38 minutes',
+       'COMPLETED', 62, 14.8, 23.4, 48.0, FALSE, TRUE
+FROM users u
+WHERE u.email = 'driver@roadguard.ai'
+  AND NOT EXISTS (SELECT 1 FROM trips t WHERE t.driver_id = u.id AND t.status = 'COMPLETED');
 
-    ('d6e7f8a9-b0c1-2345-defa-456789012345',
-     'c3d4e5f6-a7b8-9012-cdef-123456789012',
-     'Westlands', 'CBD, Haile Selassie Avenue',
-     -1.2667, 36.8000, -1.2833, 36.8217,
-     6.2, 25, 14.9,
-     ST_GeomFromText('LINESTRING(36.8000 -1.2667, 36.8080 -1.2720, 36.8150 -1.2780, 36.8217 -1.2833)', 4326),
-     NOW() - INTERVAL '5 days' - INTERVAL '25 minutes',
-     NOW() - INTERVAL '5 days',
-     55.0,
-     1,
-     NOW() - INTERVAL '5 days'),
+-- GPS trail for that trip: a straight-line interpolation with small jitter.
+INSERT INTO trip_locations (trip_id, latitude, longitude, speed, direction,
+                            accuracy, timestamp, point, is_offline)
+SELECT t.id,
+       9.0300 + (9.0100 - 9.0300) * (i / 10.0),
+       38.7460 + (38.7600 - 38.7460) * (i / 10.0),
+       18.0 + (i * 1.4),
+       135.0,
+       6.0,
+       t.start_time + (i * 210) * INTERVAL '1 second',  -- ~3.5 min apart
+       ST_SetSRID(ST_MakePoint(
+           38.7460 + (38.7600 - 38.7460) * (i / 10.0),
+           9.0300 + (9.0100 - 9.0300) * (i / 10.0)
+       ), 4326),
+       FALSE
+FROM trips t
+JOIN users u ON u.id = t.driver_id
+CROSS JOIN generate_series(0, 10) AS i
+WHERE u.email = 'driver@roadguard.ai'
+  AND t.status = 'COMPLETED'
+  AND NOT EXISTS (
+      SELECT 1 FROM trip_locations tl WHERE tl.trip_id = t.id
+  );
 
-    ('e7f8a9b0-c1d2-3456-efab-567890123456',
-     'b2c3d4e5-f6a7-8901-bcde-f12345678901',
-     'CBD, Nairobi', 'Thika Road, GSU roundabout',
-     -1.2820, 36.8220, -1.2189, 36.8875,
-     12.8, 30, 25.6,
-     ST_GeomFromText('LINESTRING(36.8220 -1.2820, 36.8400 -1.2600, 36.8550 -1.2400, 36.8700 -1.2250, 36.8875 -1.2189)', 4326),
-     NOW() - INTERVAL '2 days' - INTERVAL '30 minutes',
-     NOW() - INTERVAL '2 days',
-     88.3,
-     0,
-     NOW() - INTERVAL '2 days'),
-
-    ('f8a9b0c1-d2e3-4567-fabc-678901234567',
-     'c3d4e5f6-a7b8-9012-cdef-123456789012',
-     'Langata, Nairobi', 'Westlands, Nairobi',
-     -1.3333, 36.7500, -1.2667, 36.8000,
-     11.4, 35, 19.5,
-     ST_GeomFromText('LINESTRING(36.7500 -1.3333, 36.7650 -1.3100, 36.7750 -1.2900, 36.7900 -1.2750, 36.8000 -1.2667)', 4326),
-     NOW() - INTERVAL '1 day' - INTERVAL '35 minutes',
-     NOW() - INTERVAL '1 day',
-     91.2,
-     0,
-     NOW() - INTERVAL '1 day'),
-
-    ('a9b0c1d2-e3f4-5678-abcd-789012345678',
-     'b2c3d4e5-f6a7-8901-bcde-f12345678901',
-     'Thika, Nairobi', 'CBD, Nairobi',
-     -1.2100, 36.8800, -1.2820, 36.8220,
-     15.1, 40, 22.6,
-     ST_GeomFromText('LINESTRING(36.8800 -1.2100, 36.8650 -1.2300, 36.8500 -1.2500, 36.8350 -1.2650, 36.8220 -1.2820)', 4326),
-     NOW() - INTERVAL '12 hours' - INTERVAL '40 minutes',
-     NOW() - INTERVAL '12 hours',
-     65.8,
-     1,
-     NOW() - INTERVAL '12 hours');
-
--- ---------------------------------------------------------------------------
--- Hazard Tracks (trip-hazard associations)
--- ---------------------------------------------------------------------------
-INSERT INTO roadguard.trip_hazards (trip_id, hazard_id, proximity_meters, detected_at)
-VALUES
-    ('c5d6e7f8-a9b0-1234-cdef-345678901234',
-     'e5f6a7b8-c9d0-1234-efab-345678901234',
-     50,
-     NOW() - INTERVAL '3 days' - INTERVAL '10 minutes'),
-
-    ('d6e7f8a9-b0c1-2345-defa-456789012345',
-     'f6a7b8c9-d0e1-2345-fabc-456789012345',
-     30,
-     NOW() - INTERVAL '5 days' - INTERVAL '5 minutes'),
-
-    ('a9b0c1d2-e3f4-5678-abcd-789012345678',
-     'b8c9d0e1-f2a3-4567-bcde-678901234567',
-     100,
-     NOW() - INTERVAL '12 hours' - INTERVAL '8 minutes');
-
--- ---------------------------------------------------------------------------
--- User Preferences (sample)
--- ---------------------------------------------------------------------------
-INSERT INTO roadguard.user_preferences (user_id, notifications_enabled, preferred_radius_km,
-                                        hazard_types_subscribed, alert_threshold, created_at, updated_at)
-VALUES
-    ('a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-     TRUE, 5.0,
-     ARRAY['POTHOLE', 'FLOODING', 'ACCIDENT'],
-     'MEDIUM',
-     NOW() - INTERVAL '90 days',
-     NOW() - INTERVAL '2 days'),
-
-    ('b2c3d4e5-f6a7-8901-bcde-f12345678901',
-     TRUE, 10.0,
-     ARRAY['POTHOLE', 'ACCIDENT', 'ROAD_DAMAGE'],
-     'HIGH',
-     NOW() - INTERVAL '60 days',
-     NOW() - INTERVAL '1 day'),
-
-    ('c3d4e5f6-a7b8-9012-cdef-123456789012',
-     TRUE, 8.0,
-     ARRAY['FLOODING', 'ACCIDENT', 'FALLEN_DEBRIS'],
-     'HIGH',
-     NOW() - INTERVAL '45 days',
-     NOW() - INTERVAL '12 hours'),
-
-    ('d4e5f6a7-b8c9-0123-defa-234567890123',
-     FALSE, 15.0,
-     ARRAY['POTHOLE', 'FLOODING'],
-     'LOW',
-     NOW() - INTERVAL '30 days',
-     NOW() - INTERVAL '3 days');
-
--- ---------------------------------------------------------------------------
--- Audit Log (sample entries)
--- ---------------------------------------------------------------------------
-INSERT INTO audit.user_actions (user_id, action_type, entity_type, entity_id, old_value, new_value, ip_address, created_at)
-VALUES
-    ('b2c3d4e5-f6a7-8901-bcde-f12345678901', 'CREATE', 'HAZARD', 'e5f6a7b8-c9d0-1234-efab-345678901234',
-     NULL,
-     '{"hazard_type":"POTHOLE","severity":"HIGH","location":"Mombasa Road, near JKIA exit"}',
-     '192.168.1.100',
-     NOW() - INTERVAL '7 days'),
-
-    ('d4e5f6a7-b8c9-0123-defa-234567890123', 'UPDATE', 'HAZARD', 'f6a7b8c9-d0e1-2345-fabc-456789012345',
-     '{"status":"REPORTED"}',
-     '{"status":"VERIFIED"}',
-     '192.168.1.200',
-     NOW() - INTERVAL '13 days'),
-
-    ('a1b2c3d4-e5f6-7890-abcd-ef1234567890', 'DELETE', 'HAZARD', 'c9d0e1f2-a3b4-5678-cdef-789012345678',
-     '{"status":"ACTIVE"}',
-     '{"status":"RESOLVED"}',
-     '192.168.1.50',
-     NOW() - INTERVAL '12 hours');
+-- -----------------------------------------------------------------------------
+-- Notification for the authority officer
+-- -----------------------------------------------------------------------------
+INSERT INTO notifications (user_id, title, message, type, priority, channel)
+SELECT u.id, 'High-risk zone detected',
+       'Bole Road Corridor has been flagged as high risk after 14 recent reports.',
+       'RISK_ZONE_UPDATE', 'HIGH', 'IN_APP'
+FROM users u
+WHERE u.email = 'officer@roadguard.ai'
+  AND NOT EXISTS (
+      SELECT 1 FROM notifications n
+      WHERE n.user_id = u.id AND n.type = 'RISK_ZONE_UPDATE'
+  );
 
 COMMIT;
 
-ANALYZE roadguard.users;
-ANALYZE roadguard.hazards;
-ANALYZE roadguard.risk_zones;
-ANALYZE roadguard.trips;
-ANALYZE roadguard.trip_hazards;
-ANALYZE roadguard.user_preferences;
-ANALYZE audit.user_actions;
+-- -----------------------------------------------------------------------------
+-- Verification summary
+-- -----------------------------------------------------------------------------
+SELECT 'users'         AS entity, COUNT(*) AS rows FROM users
+UNION ALL SELECT 'permissions',   COUNT(*) FROM permissions
+UNION ALL SELECT 'vehicles',      COUNT(*) FROM vehicles
+UNION ALL SELECT 'trips',         COUNT(*) FROM trips
+UNION ALL SELECT 'trip_locations',COUNT(*) FROM trip_locations
+UNION ALL SELECT 'hazards',       COUNT(*) FROM hazards
+UNION ALL SELECT 'risk_zones',    COUNT(*) FROM risk_zones
+UNION ALL SELECT 'notifications', COUNT(*) FROM notifications
+ORDER BY entity;

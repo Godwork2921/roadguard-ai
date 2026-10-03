@@ -1,0 +1,27 @@
+# Build context: backend/roadguard-api
+# Keep the image build fast and free of local noise.
+
+target/
+logs/
+*.log
+
+.mvn/wrapper/maven-wrapper.jar
+
+.git
+.gitignore
+.gitattributes
+.idea/
+.vscode/
+*.iml
+*.swp
+*~
+
+*.md
+docs/
+
+.env
+.env.*
+application-local.yml
+
+Dockerfile
+.dockerignore
