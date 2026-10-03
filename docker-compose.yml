@@ -172,7 +172,11 @@ services:
       interval: 15s
       timeout: 10s
       retries: 20
-      start_period: 60s
+      # Generous on purpose: a first boot on an empty database runs ~148
+      # Liquibase migrations before the management port binds, which takes
+      # several minutes. Without a matching start_period those probes count
+      # against `retries` and the container gets reported unhealthy mid-migration.
+      start_period: 300s
 
 # =============================================================================
 # MinIO - S3-compatible object storage for media
