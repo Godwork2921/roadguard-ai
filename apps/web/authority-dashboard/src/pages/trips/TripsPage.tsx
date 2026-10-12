@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Navigation, Download, Filter, Calendar, Clock, MapPin } from 'lucide-react';
@@ -59,11 +58,11 @@ const mockTrips: Trip[] = Array.from({ length: 30 }, (_, i) => ({
   startLng: -74.006 + (Math.random() - 0.5) * 0.05,
   endLat: 40.758 + (Math.random() - 0.5) * 0.05,
   endLng: -73.9855 + (Math.random() - 0.5) * 0.05,
-  startAddress: [`Downtown Hub`, `Main Street`, `Grand Central`, `Times Square`][i % 4],
-  endAddress: [`Airport`, `Riverside Mall`, `Central Park`, `Brooklyn Bridge`][i % 4],
+  startAddress: [`Downtown Hub`, `Main Street`, `Grand Central`, `Times Square`][i % 4]!,
+  endAddress: [`Airport`, `Riverside Mall`, `Central Park`, `Brooklyn Bridge`][i % 4]!,
   startTime: new Date(Date.now() - i * 86400000).toISOString(),
   endTime: new Date(Date.now() - i * 86400000 + 3600000).toISOString(),
-  status: (['ACTIVE', 'COMPLETED', 'COMPLETED', 'CANCELLED'] as TripStatus[])[i % 4],
+  status: (['ACTIVE', 'COMPLETED', 'COMPLETED', 'CANCELLED'] as TripStatus[])[i % 4]!,
   riskScore: Math.floor(Math.random() * 100),
   totalDistance: Math.floor(Math.random() * 30000) + 2000,
   averageSpeed: Math.floor(Math.random() * 30) + 20,

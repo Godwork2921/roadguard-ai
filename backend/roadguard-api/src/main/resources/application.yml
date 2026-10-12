@@ -70,6 +70,25 @@ spring:
           starttls:
             enable: true
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+  health:
+    # Disabled by default because SMTP is optional outside production. With it
+    # on, a missing SMTP password makes the mail indicator DOWN, /actuator/health
+    # returns 503, and the container is reported unhealthy - which then blocks
+    # every service that waits on it, even though the database and Redis are
+    # fine. Not enabled in docker-compose.prod.yml either, because that overlay
+    # does not yet require SMTP credentials; opt in with MAIL_HEALTH_ENABLED=true
+    # once a real SMTP account is configured.
+    mail:
+      enabled: ${MAIL_HEALTH_ENABLED:false}
+
 server:
   port: ${PORT:8080}
   compression:

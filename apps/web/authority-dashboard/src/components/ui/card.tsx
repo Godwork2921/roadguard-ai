@@ -11,14 +11,14 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
     <motion.div
       ref={ref}
       className={cn(
-        'rounded-xl border border-border/50 bg-card text-card-foreground shadow-sm',
-        glass && 'bg-card/60 backdrop-blur-xl backdrop-saturate-150 border-border/30',
+        'rounded-xl border border-border/60 bg-card text-card-foreground shadow-sm',
+        glass && 'bg-card/70 backdrop-blur-xl backdrop-saturate-150 border-border/40',
         className
       )}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
-      whileHover={{ y: -2, boxShadow: '0 8px 30px rgba(0,0,0,0.12)' }}
+      whileHover={{ y: -2, boxShadow: '0 16px 40px -20px rgba(2, 44, 34, 0.35)' }}
       {...props}
     />
   )

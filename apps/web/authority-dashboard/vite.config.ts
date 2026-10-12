@@ -13,7 +13,11 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
+    // 5173 is Vite's default and the port documented in README.md and allowed
+    // in the Keycloak realm. strictPort is deliberately off so a busy port
+    // rolls forward to 5174+ instead of aborting the dev server.
+    port: 5173,
+    strictPort: false,
     proxy: {
       '/api': {
         target: 'http://localhost:8080',

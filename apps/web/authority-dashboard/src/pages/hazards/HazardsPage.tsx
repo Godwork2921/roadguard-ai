@@ -11,37 +11,36 @@ import {
   MoreHorizontal,
   Filter,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { DataGrid, type Column } from '@/components/ui/data-grid';
 import { PageContainer } from '@/components/layout/page-container';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Separator } from '@/components/ui/separator';
 import { formatDateTime, cn } from '@/lib/utils';
 import { getHazards } from '@/lib/storage';
 import type { Hazard, HazardSeverity, HazardStatus, HazardType } from '@/types';
 
 const mockHazards: Hazard[] = Array.from({ length: 25 }, (_, i) => ({
   id: `haz-${i + 1}`,
-  hazardType: (['POTHOLE', 'ROAD_CRACK', 'FLOOD', 'ACCIDENT', 'ROAD_BLOCKAGE', 'CONSTRUCTION', 'DEBRIS'] as HazardType[])[i % 7],
-  severity: (['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as HazardSeverity[])[i % 4],
-  status: (['DETECTED', 'REPORTED', 'VERIFIED', 'ASSIGNED', 'RESOLVED'] as HazardStatus[])[i % 5],
+  hazardType: (['POTHOLE', 'ROAD_CRACK', 'FLOOD', 'ACCIDENT', 'ROAD_BLOCKAGE', 'CONSTRUCTION', 'DEBRIS'] as HazardType[])[i % 7]!,
+  severity: (['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as HazardSeverity[])[i % 4]!,
+  status: (['DETECTED', 'REPORTED', 'VERIFIED', 'ASSIGNED', 'RESOLVED'] as HazardStatus[])[i % 5]!,
   latitude: 40.7128 + (Math.random() - 0.5) * 0.1,
   longitude: -74.006 + (Math.random() - 0.5) * 0.1,
   description: `Description for hazard ${i + 1}`,
   address: `${100 + i} Main Street, New York, NY`,
   confidenceScore: Math.round(Math.random() * 40 + 60),
   reportedById: `user-${(i % 10) + 1}`,
-  reportedByName: [`John D.`, `Sarah M.`, `AI System`, `Officer C.`, `Mike R.`][i % 5],
+  reportedByName: [`John D.`, `Sarah M.`, `AI System`, `Officer C.`, `Mike R.`][i % 5]!,
   verifiedById: i % 3 === 0 ? `verifier-${i}` : null,
   verifiedByName: i % 3 === 0 ? `Officer Chen` : null,
   isVerified: i % 3 === 0,
   isAIDetected: i % 4 === 0,
   source: i % 4 === 0 ? 'AI' : 'USER',
   region: (['Downtown', 'Suburbs', 'Highway', 'Industrial'] as any)[i % 4],
-  roadName: [`Broadway`, `5th Ave`, `Highway 101`, `Oak Street`][i % 4],
+  roadName: [`Broadway`, `5th Ave`, `Highway 101`, `Oak Street`][i % 4]!,
   createdAt: new Date(Date.now() - i * 3600000).toISOString(),
   updatedAt: new Date(Date.now() - i * 1800000).toISOString(),
   resolvedAt: i % 5 === 4 ? new Date().toISOString() : null,

@@ -7,24 +7,19 @@ import { z } from 'zod';
 import {
   AlertTriangle,
   MapPin,
-  Image,
   Send,
   CheckCircle2,
-  Loader2,
   ChevronLeft,
   Target,
   Camera,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { PageContainer } from '@/components/layout/page-container';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { saveHazard, generateId } from '@/lib/storage';
@@ -369,14 +364,12 @@ export default function ReportHazardPage() {
                   >
                     <div className="space-y-2">
                       <Label htmlFor="description">Description</Label>
-                      <textarea
+                      <Textarea
                         id="description"
                         rows={4}
+                        error={!!errors.description}
                         placeholder="Describe the hazard in detail (size, location on road, time observed, etc.)"
-                        className={cn(
-                          'flex w-full rounded-lg border border-border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none',
-                          errors.description && 'border-destructive'
-                        )}
+                        className="resize-none"
                         {...register('description')}
                       />
                       {errors.description && <p className="text-xs text-destructive">{errors.description.message}</p>}

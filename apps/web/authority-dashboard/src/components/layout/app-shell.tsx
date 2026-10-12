@@ -22,10 +22,6 @@ const routeBreadcrumbs: Record<string, Breadcrumb[]> = {
   '/notifications': [{ label: 'Notifications' }],
   '/settings': [{ label: 'Settings' }],
   '/profile': [{ label: 'Profile' }],
-  '/admin': [{ label: 'Admin', href: '/admin' }, { label: 'Dashboard' }],
-  '/admin/users': [{ label: 'Admin', href: '/admin' }, { label: 'Users' }],
-  '/admin/audit': [{ label: 'Admin', href: '/admin' }, { label: 'Audit Log' }],
-  '/admin/config': [{ label: 'Admin', href: '/admin' }, { label: 'Configuration' }],
 };
 
 function AppShell() {
@@ -60,7 +56,7 @@ function AppShell() {
   };
 
   return (
-    <div className="relative min-h-screen bg-background">
+    <div className="app-shell-bg relative min-h-screen bg-background">
       <Sidebar
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}

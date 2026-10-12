@@ -6,12 +6,10 @@ import {
   MapPin,
   Clock,
   User,
-  Shield,
   CheckCircle2,
   XCircle,
   UserCheck,
   Wrench,
-  MessageSquare,
   Send,
   Image,
   Navigation,
@@ -21,7 +19,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
 import { Timeline } from '@/components/ui/timeline';
 import { PageContainer } from '@/components/layout/page-container';
 import { Progress } from '@/components/ui/progress';
@@ -70,7 +67,7 @@ const itemVariants = {
 };
 
 export default function HazardDetailPage() {
-  const { id } = useParams();
+  useParams();
   const navigate = useNavigate();
   const [comment, setComment] = React.useState('');
 
@@ -173,7 +170,7 @@ export default function HazardDetailPage() {
                     <div className="space-y-2">
                       <p className="text-xs text-muted-foreground">Images</p>
                       <div className="flex gap-2">
-                        {hazard.imageUrls.map((url, idx) => (
+                        {hazard.imageUrls.map((_url, idx) => (
                           <div key={idx} className="h-20 w-20 rounded-lg bg-muted flex items-center justify-center">
                             <Image className="h-6 w-6 text-muted-foreground" />
                           </div>

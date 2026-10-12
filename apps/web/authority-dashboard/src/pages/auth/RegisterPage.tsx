@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Mail, Lock, User, Phone, ArrowRight, Check, Loader2, Eye, EyeOff, ChevronLeft } from 'lucide-react';
+import { Mail, Lock, User, Phone, ArrowRight, Eye, EyeOff, ChevronLeft } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -237,7 +237,7 @@ export default function RegisterPage() {
 
                     <motion.div variants={staggerItem} className="space-y-2">
                       <Label htmlFor="role">I am a</Label>
-                      <Select defaultValue="DRIVER" onValueChange={(v) => {}}>
+                      <Select defaultValue="DRIVER" onValueChange={() => {}}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select role" />
                         </SelectTrigger>

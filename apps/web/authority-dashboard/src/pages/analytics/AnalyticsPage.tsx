@@ -7,9 +7,6 @@ import {
   Timer,
   Download,
   Calendar,
-  BarChart3,
-  Activity,
-  Route,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,7 +14,6 @@ import { AnimatedCounter } from '@/components/ui/animated-counter';
 import { PageContainer } from '@/components/layout/page-container';
 import { AreaChart, LineChart, BarChart, PieChart } from '@/components/ui/chart';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 
 const dAUData = Array.from({ length: 30 }, (_, i) => ({
@@ -244,7 +240,7 @@ export default function AnalyticsPage() {
                         idx === 0 ? 'bg-red-500' : idx === 1 ? 'bg-orange-500' : idx === 2 ? 'bg-amber-500' : 'bg-muted-foreground/30'
                       )}
                       initial={{ width: 0 }}
-                      animate={{ width: `${(road.value / dangerousRoadsData[0].value) * 100}%` }}
+                      animate={{ width: `${(road.value / dangerousRoadsData[0]!.value) * 100}%` }}
                       transition={{ duration: 0.8, delay: idx * 0.08 }}
                     />
                   </div>

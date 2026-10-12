@@ -1,5 +1,6 @@
 import logging
 import time
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -17,7 +18,7 @@ _start_time: float = time.time()
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Starting RoadGuard AI Service...")
     hazard_service.load_model()
     yield
@@ -44,7 +45,7 @@ app.include_router(anomaly.router)
 
 
 @app.get("/api/v1/health", response_model=HealthResponse)
-async def health_check():
+async def health_check() -> HealthResponse:
     return HealthResponse(
         status="healthy",
         model_loaded=hazard_service._model_loaded,

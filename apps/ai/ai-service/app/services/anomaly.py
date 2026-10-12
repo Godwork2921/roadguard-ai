@@ -7,26 +7,34 @@ from app.utils import timeit
 
 logger = logging.getLogger(__name__)
 
+GRAVITY = 9.81
+MAX_TRACKED_SESSIONS = 1000
+
 
 class AnomalyDetectionService:
     def __init__(self) -> None:
-        self._prev_heading: Optional[float] = None
+        self._prev_headings: dict[str, float] = {}
 
-    def _compute_heading_change(self, current_heading: float) -> Optional[float]:
-        if self._prev_heading is None:
-            self._prev_heading = current_heading
+    def _compute_heading_change(self, current_heading: float, session_id: str) -> Optional[float]:
+        if len(self._prev_headings) >= MAX_TRACKED_SESSIONS:
+            self._prev_headings.clear()
+        previous = self._prev_headings.get(session_id)
+        self._prev_headings[session_id] = current_heading
+        if previous is None:
             return None
-        diff = abs(current_heading - self._prev_heading)
+        diff = abs(current_heading - previous)
         if diff > 180:
             diff = 360 - diff
-        self._prev_heading = current_heading
         return diff
 
     def _rule_based_analysis(
-        self, sensor_data: dict, speed: Optional[float], heading: Optional[float]
+        self,
+        sensor_data: dict,
+        speed: Optional[float],
+        heading: Optional[float],
+        session_id: str,
     ) -> AnomalyResult:
         accel = sensor_data.get("accelerometer", {})
-        gyro = sensor_data.get("gyroscope", {})
 
         if isinstance(accel, dict):
             ax = accel.get("x", 0.0)
@@ -35,19 +43,13 @@ class AnomalyDetectionService:
         else:
             ax = ay = az = 0.0
 
-        if isinstance(gyro, dict):
-            gx = gyro.get("x", 0.0)
-            gy = gyro.get("y", 0.0)
-            gz = gyro.get("z", 0.0)
-        else:
-            gx = gy = gy = gz = 0.0
-
+        heading_change: Optional[float] = None
         if heading is not None:
-            heading_change = self._compute_heading_change(heading)
-        else:
-            heading_change = None
+            heading_change = self._compute_heading_change(heading, session_id)
 
-        vibration_magnitude = math.sqrt(ax**2 + ay**2 + az**2) * 9.81
+        raw_magnitude = math.sqrt(ax**2 + ay**2 + az**2)
+        dynamic_magnitude = math.sqrt(max(raw_magnitude**2 - GRAVITY**2, 0.0))
+        vibration_magnitude = dynamic_magnitude * GRAVITY
 
         anomalies = []
 
@@ -63,7 +65,6 @@ class AnomalyDetectionService:
             anomalies.append(("HIGH_SPEED_TURN", min((heading_change / 60.0) * (speed / 80.0), 1.0), "CRITICAL", 0.90))
 
         if anomalies:
-            anomalies.sort(key=lambda x: x[3], reverse=True)
             anomaly_type, confidence, severity, _ = anomalies[0]
             return AnomalyResult(
                 is_anomaly=True,
@@ -72,14 +73,23 @@ class AnomalyDetectionService:
                 severity=severity,
             )
 
-        return AnomalyResult(is_anomaly=False, confidence=0.0)
+        return AnomalyResult(is_anomaly=False, anomaly_type=None, confidence=0.0, severity=None)
 
     @timeit
     def analyze(
-        self, sensor_data: dict, speed: Optional[float] = None, heading: Optional[float] = None
+        self,
+        sensor_data: dict,
+        speed: Optional[float] = None,
+        heading: Optional[float] = None,
+        session_id: Optional[str] = None,
     ) -> AnomalyResult:
-        logger.debug("Analyzing sensor data: speed=%s, heading=%s", speed, heading)
-        return self._rule_based_analysis(sensor_data, speed, heading)
+        logger.debug(
+            "Analyzing sensor data: speed=%s, heading=%s, session=%s",
+            speed,
+            heading,
+            session_id,
+        )
+        return self._rule_based_analysis(sensor_data, speed, heading, session_id or "default")
 
 
 anomaly_service = AnomalyDetectionService()

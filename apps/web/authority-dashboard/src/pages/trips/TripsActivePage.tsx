@@ -849,7 +849,7 @@ export default function TripsActivePage() {
                       <span className="text-sm truncate">{h.type}</span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      {h.photoCaptured && <Camera className="h-3 w-3 text-muted-foreground" title="Photo evidence" />}
+                      {h.photoCaptured && <Camera className="h-3 w-3 text-muted-foreground" aria-label="Photo evidence" />}
                       {h.reported && <Badge variant="low" className="text-[10px] h-5 px-1.5">Reported</Badge>}
                       <span className="text-xs text-muted-foreground">{h.time}</span>
                       <Badge variant={h.severity === 'HIGH' ? 'high' : h.severity === 'MEDIUM' ? 'medium' : 'low'}>{h.severity}</Badge>

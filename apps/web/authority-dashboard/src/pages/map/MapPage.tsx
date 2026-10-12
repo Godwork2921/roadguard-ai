@@ -2,7 +2,6 @@ import * as React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Map,
-  Layers,
   ZoomIn,
   ZoomOut,
   Maximize2,
@@ -11,21 +10,13 @@ import {
   Navigation,
   Shield,
   Thermometer,
-  Filter,
   X,
-  ChevronLeft,
   ChevronRight,
-  Target,
-  Circle,
-  MapPin,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { PageContainer } from '@/components/layout/page-container';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { cn, formatRelativeTime } from '@/lib/utils';
 import type { HazardSeverity, HazardType, HazardStatus } from '@/types';
 
@@ -42,9 +33,9 @@ interface MapHazard {
 
 const mockHazards: MapHazard[] = Array.from({ length: 20 }, (_, i) => ({
   id: `mh-${i}`,
-  type: (['POTHOLE', 'FLOOD', 'ACCIDENT', 'ROAD_BLOCKAGE', 'CONSTRUCTION', 'DEBRIS'] as HazardType[])[i % 6],
-  severity: (['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as HazardSeverity[])[i % 4],
-  status: (['DETECTED', 'REPORTED', 'VERIFIED', 'ASSIGNED', 'RESOLVED'] as HazardStatus[])[i % 5],
+  type: (['POTHOLE', 'FLOOD', 'ACCIDENT', 'ROAD_BLOCKAGE', 'CONSTRUCTION', 'DEBRIS'] as HazardType[])[i % 6]!,
+  severity: (['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as HazardSeverity[])[i % 4]!,
+  status: (['DETECTED', 'REPORTED', 'VERIFIED', 'ASSIGNED', 'RESOLVED'] as HazardStatus[])[i % 5]!,
   latitude: 40.7128 + (Math.random() - 0.5) * 0.08,
   longitude: -74.006 + (Math.random() - 0.5) * 0.08,
   description: `${['Large pothole', 'Road flooding', 'Traffic accident', 'Fallen tree', 'Construction zone', 'Debris on road'][i % 6]} near ${['Broadway', '5th Ave', 'Park Ave', 'Madison Ave'][i % 4]}`,

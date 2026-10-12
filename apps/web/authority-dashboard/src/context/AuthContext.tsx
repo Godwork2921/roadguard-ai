@@ -36,6 +36,7 @@ interface AuthContextValue extends AuthState {
     password: string;
     firstName?: string;
     lastName?: string;
+    phone?: string;
     role?: string;
   }) => Promise<void>;
   logout: () => Promise<void>;

@@ -289,18 +289,6 @@ export const mapApi = {
   }) => api.get('/map/risk-zones', { params }),
 };
 
-export const adminApi = {
-  getSystemHealth: () => api.get('/admin/health'),
-  getUserStats: () => api.get('/admin/users/stats'),
-  getConfigs: () => api.get('/admin/configs'),
-  updateConfig: (data: {
-    key: string;
-    value: string;
-  }) => api.put('/admin/configs', data),
-  getAuditLogs: (params?: Record<string, unknown>) =>
-    api.get('/admin/audit-logs', { params }),
-};
-
 export const syncApi = {
   sync: (data: Record<string, unknown>) => api.post('/sync', data),
   getSyncStatus: () => api.get('/sync/status'),

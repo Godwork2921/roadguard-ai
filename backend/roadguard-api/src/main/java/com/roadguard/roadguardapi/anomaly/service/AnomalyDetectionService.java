@@ -8,6 +8,7 @@ import com.roadguard.roadguardapi.anomaly.entity.AnomalyEvent.AnomalyType;
 import com.roadguard.roadguardapi.anomaly.entity.AnomalyEvent.Severity;
 import com.roadguard.roadguardapi.anomaly.event.PotentialHazardDetectedEvent;
 import com.roadguard.roadguardapi.anomaly.repository.AnomalyEventRepository;
+import com.roadguard.roadguardapi.integration.ai.AiServiceClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.locationtech.jts.geom.Coordinate;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -32,6 +34,7 @@ public class AnomalyDetectionService {
 
     private final AnomalyEventRepository anomalyEventRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final AiServiceClient aiServiceClient;
 
     private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory(new PrecisionModel(), 4326);
     private static final long POTENTIAL_HAZARD_THRESHOLD = 3;
@@ -51,6 +54,7 @@ public class AnomalyDetectionService {
         event.setHeading(req.getHeading());
         event.setDeviceId(req.getDeviceId());
         event.setConfidenceScore(calculateConfidence(req));
+        enrichConfidenceWithAi(event, req);
         event.setRawSensorData(req.getRawSensorData());
         event.setDetectedAt(req.getDetectedAt());
 
@@ -110,6 +114,30 @@ public class AnomalyDetectionService {
                 .avgConfidence(row[4] != null ? ((Number) row[4]).doubleValue() : 0.0)
                 .build())
             .collect(Collectors.toList());
+    }
+
+    private void enrichConfidenceWithAi(AnomalyEvent event, ReportAnomalyRequest req) {
+        if (req.getRawSensorData() == null || req.getRawSensorData().isEmpty()) {
+            return;
+        }
+        try {
+            String sessionId = req.getTripId() != null
+                    ? req.getTripId().toString()
+                    : req.getDeviceId();
+            Map<String, Object> aiResult = aiServiceClient.analyzeAnomaly(
+                    req.getLatitude(), req.getLongitude(), req.getRawSensorData(),
+                    req.getSpeed(), req.getHeading(), sessionId);
+
+            if (aiResult != null && Boolean.TRUE.equals(aiResult.get("is_anomaly"))
+                    && aiResult.get("confidence") instanceof Number aiConfidence
+                    && event.getConfidenceScore() != null
+                    && aiConfidence.doubleValue() > event.getConfidenceScore()) {
+                event.setConfidenceScore(aiConfidence.doubleValue());
+                log.debug("AI analysis raised anomaly confidence to {} for driver {}", aiConfidence, event.getDriverId());
+            }
+        } catch (Exception e) {
+            log.warn("AI anomaly analysis skipped for driver {}: {}", event.getDriverId(), e.getMessage());
+        }
     }
 
     private Severity determineSeverity(ReportAnomalyRequest req) {

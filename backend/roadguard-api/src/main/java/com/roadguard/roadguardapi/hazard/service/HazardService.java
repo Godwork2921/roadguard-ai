@@ -9,8 +9,11 @@ import com.roadguard.roadguardapi.hazard.event.HazardResolvedEvent;
 import com.roadguard.roadguardapi.hazard.event.HazardVerifiedEvent;
 import com.roadguard.roadguardapi.hazard.mapper.HazardMapper;
 import com.roadguard.roadguardapi.hazard.repository.HazardRepository;
+import com.roadguard.roadguardapi.integration.ai.AiDetectionResult;
+import com.roadguard.roadguardapi.integration.ai.AiServiceClient;
 import com.roadguard.roadguardapi.user.entity.User;
 import com.roadguard.roadguardapi.user.repository.UserRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
@@ -27,6 +30,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @Transactional
 public class HazardService {
@@ -37,15 +41,18 @@ public class HazardService {
     private final UserRepository userRepository;
     private final HazardMapper hazardMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final AiServiceClient aiServiceClient;
 
     public HazardService(HazardRepository hazardRepository,
                          UserRepository userRepository,
                          HazardMapper hazardMapper,
-                         ApplicationEventPublisher eventPublisher) {
+                         ApplicationEventPublisher eventPublisher,
+                         AiServiceClient aiServiceClient) {
         this.hazardRepository = hazardRepository;
         this.userRepository = userRepository;
         this.hazardMapper = hazardMapper;
         this.eventPublisher = eventPublisher;
+        this.aiServiceClient = aiServiceClient;
     }
 
     public HazardDTO reportHazard(UUID userId, ReportHazardRequest request) {
@@ -77,6 +84,10 @@ public class HazardService {
             hazard.setImages(images);
         }
 
+        if (hazard.getImages() != null && !hazard.getImages().isEmpty()) {
+            enrichWithAiDetection(hazard, hazard.getImages().get(0).getImageUrl());
+        }
+
         Hazard saved = hazardRepository.save(hazard);
 
         eventPublisher.publishEvent(new HazardReportedEvent(
@@ -85,6 +96,20 @@ public class HazardService {
                 userId, LocalDateTime.now()));
 
         return hazardMapper.toDto(saved);
+    }
+
+    private void enrichWithAiDetection(Hazard hazard, String imageUrl) {
+        try {
+            AiDetectionResult detection = aiServiceClient.detectHazardFromUrl(imageUrl);
+            if (detection != null && detection.getHazardType() != null) {
+                hazard.setAIDetected(true);
+                hazard.setConfidenceScore(detection.getConfidenceScore());
+                log.info("AI detection for hazard image {}: type={}, confidence={}",
+                        imageUrl, detection.getHazardType(), detection.getConfidenceScore());
+            }
+        } catch (Exception e) {
+            log.warn("AI hazard detection skipped for {}: {}", imageUrl, e.getMessage());
+        }
     }
 
     @Transactional(readOnly = true)

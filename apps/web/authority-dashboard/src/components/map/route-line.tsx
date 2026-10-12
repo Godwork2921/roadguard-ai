@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
+import { motion, animate } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import type { Coordinates, RiskLevel } from '@/types';
 
@@ -27,13 +27,6 @@ const riskColors: Record<RiskLevel, string> = {
   MEDIUM: '#eab308',
   HIGH: '#f97316',
   CRITICAL: '#ef4444',
-};
-
-const riskBorderColors: Record<RiskLevel, string> = {
-  LOW: 'rgba(34,197,94,0.3)',
-  MEDIUM: 'rgba(234,179,8,0.3)',
-  HIGH: 'rgba(249,115,22,0.3)',
-  CRITICAL: 'rgba(239,68,68,0.3)',
 };
 
 function RouteLine({
@@ -74,11 +67,11 @@ function RouteLine({
 
   const buildPath = (pts: RoutePoint[]): string => {
     if (pts.length < 2) return '';
-    const first = pts[0];
+    const first = pts[0]!;
     let path = `M ${first.lng} ${first.lat}`;
     for (let i = 1; i < pts.length; i++) {
-      const prev = pts[i - 1];
-      const curr = pts[i];
+      const prev = pts[i - 1]!;
+      const curr = pts[i]!;
       const cpx = (prev.lng + curr.lng) / 2;
       const cpy = (prev.lat + curr.lat) / 2;
       path += ` Q ${prev.lng} ${prev.lat}, ${cpx} ${cpy}`;
@@ -152,16 +145,16 @@ function RouteLine({
       )}
 
       <circle
-        cx={coordinates[0].lng}
-        cy={coordinates[0].lat}
+        cx={coordinates[0]!.lng}
+        cy={coordinates[0]!.lat}
         r={5}
         fill={lineColor}
         stroke="white"
         strokeWidth={2}
       />
       <circle
-        cx={coordinates[coordinates.length - 1].lng}
-        cy={coordinates[coordinates.length - 1].lat}
+        cx={coordinates[coordinates.length - 1]!.lng}
+        cy={coordinates[coordinates.length - 1]!.lat}
         r={5}
         fill={lineColor}
         stroke="white"
@@ -170,8 +163,8 @@ function RouteLine({
 
       {label && (
         <text
-          x={(coordinates[0].lng + coordinates[coordinates.length - 1].lng) / 2}
-          y={(coordinates[0].lat + coordinates[coordinates.length - 1].lat) / 2 - 12}
+          x={(coordinates[0]!.lng + coordinates[coordinates.length - 1]!.lng) / 2}
+          y={(coordinates[0]!.lat + coordinates[coordinates.length - 1]!.lat) / 2 - 12}
           fill={lineColor}
           fontSize="11"
           fontWeight="600"
@@ -186,9 +179,10 @@ function RouteLine({
   );
 }
 
-function getPointAtProgress(coords: RoutePoint[], progress: number): { cx: number; cy: number } | {} {
-  if (coords.length < 2 || progress <= 0) return { cx: coords[0].lng, cy: coords[0].lat };
-  if (progress >= 1) return { cx: coords[coords.length - 1].lng, cy: coords[coords.length - 1].lat };
+function getPointAtProgress(coords: RoutePoint[], progress: number): { cx?: number; cy?: number } {
+  if (coords.length === 0) return {};
+  if (coords.length < 2 || progress <= 0) return { cx: coords[0]!.lng, cy: coords[0]!.lat };
+  if (progress >= 1) return { cx: coords[coords.length - 1]!.lng, cy: coords[coords.length - 1]!.lat };
 
   const totalSegments = coords.length - 1;
   const totalProgress = progress * totalSegments;
@@ -196,11 +190,11 @@ function getPointAtProgress(coords: RoutePoint[], progress: number): { cx: numbe
   const segmentProgress = totalProgress - segmentIndex;
 
   if (segmentIndex >= totalSegments) {
-    return { cx: coords[coords.length - 1].lng, cy: coords[coords.length - 1].lat };
+    return { cx: coords[coords.length - 1]!.lng, cy: coords[coords.length - 1]!.lat };
   }
 
-  const from = coords[segmentIndex];
-  const to = coords[segmentIndex + 1];
+  const from = coords[segmentIndex]!;
+  const to = coords[segmentIndex + 1]!;
 
   return {
     cx: from.lng + (to.lng - from.lng) * segmentProgress,

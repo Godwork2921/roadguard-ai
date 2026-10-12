@@ -1,5 +1,4 @@
-import * as React from 'react';
-import { motion } from 'framer-motion';
+import { motion, type HTMLMotionProps } from 'framer-motion';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
@@ -21,7 +20,7 @@ const statusDotVariants = cva(
 );
 
 interface StatusDotProps
-  extends React.HTMLAttributes<HTMLSpanElement>,
+  extends HTMLMotionProps<'span'>,
     VariantProps<typeof statusDotVariants> {
   pulse?: boolean;
   label?: string;

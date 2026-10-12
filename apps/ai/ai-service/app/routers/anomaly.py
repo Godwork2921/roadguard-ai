@@ -11,16 +11,15 @@ router = APIRouter(prefix="/api/v1", tags=["anomaly"])
 
 
 @router.post("/anomaly", response_model=AnomalyResult)
-async def analyze_anomaly(request: AnomalyRequest):
-    if not request.sensor_data:
-        raise HTTPException(status_code=400, detail="sensor_data is required.")
+async def analyze_anomaly(request: AnomalyRequest) -> AnomalyResult:
     try:
         result = anomaly_service.analyze(
             sensor_data=request.sensor_data,
             speed=request.speed,
             heading=request.heading,
+            session_id=request.session_id,
         )
     except Exception as exc:
         logger.exception("Anomaly analysis failed")
-        raise HTTPException(status_code=500, detail="Internal anomaly analysis error.")
+        raise HTTPException(status_code=500, detail="Internal anomaly analysis error.") from exc
     return result

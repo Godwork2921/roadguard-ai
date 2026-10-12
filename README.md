@@ -25,8 +25,8 @@ roadguard-ai/
 ├── backend/
 │   └── roadguard-api/             Spring Boot modular monolith (Java 24)
 ├── database/
-│   ├── migrations/                (Flyway history is versioned with the backend)
 │   └── scripts/                   seed.sql and dev helpers
+│                                  (Flyway history lives with the backend)
 ├── infrastructure/
 │   ├── docker/                    (reserved)
 │   ├── keycloak/                  realm import

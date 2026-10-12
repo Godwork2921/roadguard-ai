@@ -21,10 +21,6 @@ const AnalyticsPage = lazy(() => import('@/pages/analytics/AnalyticsPage'));
 const NotificationsPage = lazy(() => import('@/pages/notifications/NotificationsPage'));
 const ProfilePage = lazy(() => import('@/pages/profile/ProfilePage'));
 const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage'));
-const AdminDashboardPage = lazy(() => import('@/pages/admin/AdminDashboardPage'));
-const AdminUsersPage = lazy(() => import('@/pages/admin/AdminUsersPage'));
-const AdminConfigPage = lazy(() => import('@/pages/admin/AdminConfigPage'));
-const AdminAuditLogPage = lazy(() => import('@/pages/admin/AdminAuditLogPage'));
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'));
 
 function PageLoader() {
@@ -101,13 +97,6 @@ export default function App() {
 
             <Route element={<RoleRoute roles={['AUTHORITY_OFFICER']} />}>
               <Route path="/authority" element={<AuthorityDashboardPage />} />
-            </Route>
-
-            <Route element={<RoleRoute roles={['ADMINISTRATOR']} />}>
-              <Route path="/admin" element={<AdminDashboardPage />} />
-              <Route path="/admin/users" element={<AdminUsersPage />} />
-              <Route path="/admin/config" element={<AdminConfigPage />} />
-              <Route path="/admin/audit-logs" element={<AdminAuditLogPage />} />
             </Route>
             </Route>
           </Route>

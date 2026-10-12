@@ -1,7 +1,5 @@
 import logging
-import time
 import random
-import os
 from typing import List, Optional
 from pathlib import Path
 
@@ -79,19 +77,29 @@ class HazardDetectionService:
                 hazard_type=hazard_type,
                 confidence_score=round(confidence, 4),
                 severity=severity,
+                bounding_box=None,
                 processing_time_ms=round(random.uniform(10, 50), 2),
             )
         ]
 
     @timeit
     def detect(self, image: np.ndarray) -> List[DetectionResult]:
+        if not self._model_loaded:
+            self.load_model()
+
         if self._mock_mode:
             return self._mock_detect()
 
+        interpreter = self._interpreter
+        input_details = self._input_details
+        output_details = self._output_details
+        if interpreter is None or input_details is None or output_details is None:
+            raise RuntimeError("Model is not loaded.")
+
         input_tensor = self.preprocess_image(image)
-        self._interpreter.set_tensor(self._input_details[0]["index"], input_tensor)
-        self._interpreter.invoke()
-        output_data = self._interpreter.get_tensor(self._output_details[0]["index"])
+        interpreter.set_tensor(input_details[0]["index"], input_tensor)
+        interpreter.invoke()
+        output_data = interpreter.get_tensor(output_details[0]["index"])
 
         results = []
         threshold = settings.confidence_threshold
@@ -115,7 +123,7 @@ class HazardDetectionService:
                         processing_time_ms=0.0,
                     )
                 )
-        return results if results else self._mock_detect()
+        return results
 
     @timeit
     def detect_from_bytes(self, image_bytes: bytes) -> List[DetectionResult]:

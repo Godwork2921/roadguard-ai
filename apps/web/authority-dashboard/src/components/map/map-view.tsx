@@ -55,7 +55,6 @@ function MapView({
   interactive = true,
   className,
   style,
-  onBoundsChange,
   onMarkerClick,
   onMapClick,
   loading = false,
@@ -77,8 +76,7 @@ function MapView({
     return () => clearTimeout(timer);
   }, []);
 
-  const handleFlyTo = (coords: Coordinates, flyZoom?: number) => {};
-  const handleFitBounds = (bounds: { sw: Coordinates; ne: Coordinates }) => {};
+  const handleFlyTo = (_coords: Coordinates, _flyZoom?: number) => {};
 
   if (loading || !mapLoaded) {
     return (

@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -6,11 +5,8 @@ import {
   MapPin,
   Clock,
   Gauge,
-  Zap,
-  AlertTriangle,
   ChevronLeft,
-  TrendingUp,
-  Speedometer,
+  Activity,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,7 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { RiskIndicator } from '@/components/ui/risk-indicator';
 import { AnimatedCounter } from '@/components/ui/animated-counter';
 import { Timeline } from '@/components/ui/timeline';
-import { cn, formatDate, formatDateTime } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 const mockTripLocations = [
   { time: '09:00', location: 'Downtown Hub', lat: 40.7128, lng: -74.006 },
@@ -62,7 +58,7 @@ export default function TripDetailPage() {
           {[
             { label: 'Total Distance', value: 12.4, suffix: 'km', icon: Navigation, color: 'text-blue-500 bg-blue-500/10' },
             { label: 'Duration', value: 1, suffix: 'h 12m', icon: Clock, color: 'text-primary bg-primary/10' },
-            { label: 'Avg Speed', value: 42, suffix: 'km/h', icon: Speedometer, color: 'text-emerald-500 bg-emerald-500/10' },
+            { label: 'Avg Speed', value: 42, suffix: 'km/h', icon: Activity, color: 'text-emerald-500 bg-emerald-500/10' },
             { label: 'Max Speed', value: 78, suffix: 'km/h', icon: Gauge, color: 'text-amber-500 bg-amber-500/10' },
           ].map((stat) => {
             const Icon = stat.icon;

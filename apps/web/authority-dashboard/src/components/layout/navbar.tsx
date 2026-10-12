@@ -1,12 +1,9 @@
 import * as React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/hooks/useAuth';
+import { useTheme } from '@/hooks/useTheme';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -34,16 +31,13 @@ interface NavbarProps {
 
 function Navbar({ onMenuToggle, breadcrumbs = [] }: NavbarProps) {
   const { scrollY } = useScroll();
-  const backgroundOpacity = useTransform(scrollY, [0, 50], [0.8, 1]);
-  const shadowOpacity = useTransform(scrollY, [0, 50], [0, 1]);
+  const shadow = useTransform(scrollY, [0, 60], [
+    '0 1px 2px rgba(2, 6, 23, 0)',
+    '0 1px 14px rgba(2, 6, 23, 0.07)',
+  ]);
   const { user, coins } = useAuth();
+  const { resolvedTheme, setTheme } = useTheme();
   const [searchOpen, setSearchOpen] = React.useState(false);
-  const [theme, setTheme] = React.useState<'light' | 'dark'>('dark');
-
-  React.useEffect(() => {
-    const root = document.documentElement;
-    root.classList.toggle('dark', theme === 'dark');
-  }, [theme]);
 
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -59,18 +53,8 @@ function Navbar({ onMenuToggle, breadcrumbs = [] }: NavbarProps) {
 
   return (
     <motion.header
-      style={{
-        backgroundColor: useTransform(backgroundOpacity, (v) =>
-          theme === 'dark'
-            ? `rgba(13, 20, 35, ${v})`
-            : `rgba(255, 255, 255, ${v})`
-        ),
-        boxShadow: useTransform(
-          shadowOpacity,
-          (v) => `0 1px 3px rgba(0,0,0,${v * 0.1})`
-        ),
-      }}
-      className="sticky top-0 z-20 w-full border-b border-border/50 backdrop-blur-xl"
+      style={{ boxShadow: shadow }}
+      className="sticky top-0 z-20 w-full border-b border-border/60 bg-background/80 backdrop-blur-xl"
     >
       <div className="flex h-16 items-center gap-4 px-4 lg:px-6">
         <button
@@ -118,16 +102,17 @@ function Navbar({ onMenuToggle, breadcrumbs = [] }: NavbarProps) {
         </div>
 
         <button
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
           className="rounded-lg p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          aria-label="Toggle theme"
         >
           <motion.div
-            key={theme}
+            key={resolvedTheme}
             initial={{ rotate: -90, opacity: 0, scale: 0.5 }}
             animate={{ rotate: 0, opacity: 1, scale: 1 }}
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
           >
-            {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            {resolvedTheme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
           </motion.div>
         </button>
 

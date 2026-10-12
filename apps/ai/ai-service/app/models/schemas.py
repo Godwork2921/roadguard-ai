@@ -20,6 +20,9 @@ class AnomalyRequest(BaseModel):
     longitude: float = Field(..., ge=-180.0, le=180.0)
     speed: Optional[float] = Field(None, ge=0.0)
     heading: Optional[float] = Field(None, ge=0.0, le=360.0)
+    session_id: Optional[str] = Field(
+        None, description="Identifier used to track heading continuity between requests"
+    )
 
 
 class AnomalyResult(BaseModel):

@@ -10,11 +10,9 @@ import {
   Monitor,
   Save,
   Camera,
-  Loader2,
   Eye,
   EyeOff,
   Check,
-  X,
   Plus,
   Trash2,
 } from 'lucide-react';
@@ -81,7 +79,7 @@ export default function SettingsPage() {
   const [showCurrentPw, setShowCurrentPw] = React.useState(false);
   const [showNewPw, setShowNewPw] = React.useState(false);
   const [saving, setSaving] = React.useState<string | null>(null);
-  const [vehicles, setVehicles] = React.useState(mockVehicles);
+  const [vehicles] = React.useState(mockVehicles);
 
   const handleSave = async (section: string) => {
     setSaving(section);
@@ -235,7 +233,7 @@ export default function SettingsPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                {vehicles.map((vehicle, idx) => (
+                {vehicles.map((vehicle) => (
                   <motion.div
                     key={vehicle.id}
                     variants={itemVariants}

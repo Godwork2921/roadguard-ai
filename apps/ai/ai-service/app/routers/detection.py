@@ -18,7 +18,7 @@ class ImageUrlPayload(BaseModel):
 
 
 @router.post("/detect", response_model=DetectionResult)
-async def detect_hazard(file: UploadFile = File(...)):
+async def detect_hazard(file: UploadFile = File(...)) -> DetectionResult:
     if file.content_type and not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image.")
     image_bytes = await file.read()
@@ -30,7 +30,7 @@ async def detect_hazard(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
         logger.exception("Detection failed for file %s", file.filename)
-        raise HTTPException(status_code=500, detail="Internal detection error.")
+        raise HTTPException(status_code=500, detail="Internal detection error.") from exc
     elapsed = (time.perf_counter() - start) * 1000
     if not results:
         raise HTTPException(status_code=404, detail="No hazards detected.")
@@ -40,7 +40,7 @@ async def detect_hazard(file: UploadFile = File(...)):
 
 
 @router.post("/detect-url", response_model=DetectionResult)
-async def detect_hazard_url(payload: ImageUrlPayload):
+async def detect_hazard_url(payload: ImageUrlPayload) -> DetectionResult:
     start = time.perf_counter()
     try:
         results = await hazard_service.detect_from_url(payload.image_url)
@@ -60,7 +60,7 @@ class BatchUrlPayload(BaseModel):
 
 
 @router.post("/batch-detect", response_model=BatchDetectionResult)
-async def batch_detect(payload: BatchUrlPayload):
+async def batch_detect(payload: BatchUrlPayload) -> BatchDetectionResult:
     all_results = []
     for url in payload.image_urls:
         try:

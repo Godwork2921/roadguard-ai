@@ -40,8 +40,11 @@ USER roadguard
 
 EXPOSE 8080
 
-ENV JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+UseContainerSupport" \
-    SPRING_PROFILES_ACTIVE=prod
+# SPRING_PROFILES_ACTIVE is deliberately NOT set here. A hardcoded default made
+# every deployment - including `docker compose up` - run the production profile,
+# which is the wrong default for a developer stack. Compose sets it explicitly:
+# base = default, dev overlay = default, prod overlay = prod.
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+UseContainerSupport"
 
 # Container-aware heap: JVM reads MaxRAMPercentage, so no -Xmx hardcoding.
 ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]

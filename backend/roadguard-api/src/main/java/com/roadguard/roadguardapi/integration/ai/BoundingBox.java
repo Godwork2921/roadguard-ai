@@ -6,8 +6,8 @@ import lombok.Data;
 @Data
 @Builder
 public class BoundingBox {
-    private int x;
-    private int y;
-    private int width;
-    private int height;
+    private double x;
+    private double y;
+    private double width;
+    private double height;
 }

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, type HTMLMotionProps } from 'framer-motion';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { AlertCircle, CheckCircle, AlertTriangle, Info, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -31,8 +31,9 @@ const alertIcons = {
 };
 
 interface AlertProps
-  extends React.HTMLAttributes<HTMLDivElement>,
+  extends HTMLMotionProps<'div'>,
     VariantProps<typeof alertVariants> {
+  children?: React.ReactNode;
   dismissible?: boolean;
   icon?: boolean;
 }

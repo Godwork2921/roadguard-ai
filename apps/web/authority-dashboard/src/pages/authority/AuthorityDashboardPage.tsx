@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
   AlertTriangle,
-  CheckCircle2,
   Clock,
   Timer,
   Map,
@@ -19,13 +18,12 @@ import { AnimatedCounter } from '@/components/ui/animated-counter';
 import { PageContainer } from '@/components/layout/page-container';
 import { AreaChart } from '@/components/ui/chart';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { StatusDot } from '@/components/ui/status-dot';
-import { Separator } from '@/components/ui/separator';
 import { cn, formatRelativeTime } from '@/lib/utils';
 
 interface KPI {
   label: string;
   value: number;
+  suffix?: string;
   icon: React.ElementType;
   color: string;
   trend: number;

@@ -18,9 +18,9 @@ import org.springframework.web.reactive.function.client.WebClientRequestExceptio
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 @Service
 public class AiServiceClient {
@@ -65,6 +65,10 @@ public class AiServiceClient {
             log.error("Failed to read image bytes: {}", e.getMessage());
             throw new RuntimeException("Failed to process image", e);
         } catch (WebClientResponseException e) {
+            if (e.getStatusCode().value() == 404) {
+                log.info("AI service detected no hazards in image {}", image.getOriginalFilename());
+                return null;
+            }
             log.error("AI service returned error: status={}, body={}", e.getStatusCode(), e.getResponseBodyAsString());
             throw e;
         } catch (Exception e) {
@@ -93,6 +97,13 @@ public class AiServiceClient {
                     .block();
 
             return parseDetectionResult(response);
+        } catch (WebClientResponseException e) {
+            if (e.getStatusCode().value() == 404) {
+                log.info("AI service detected no hazards for image URL {}", imageUrl);
+                return null;
+            }
+            log.error("AI service URL detection failed: {}", e.getMessage());
+            throw e;
         } catch (Exception e) {
             log.error("AI service URL detection failed: {}", e.getMessage());
             throw e;
@@ -104,14 +115,24 @@ public class AiServiceClient {
             maxAttemptsExpression = "#{@aiServiceConfig.maxRetries}",
             backoff = @Backoff(delayExpression = "#{@aiServiceConfig.retryDelayMs}")
     )
-    public Map<String, Object> analyzeAnomaly(Map<String, Object> sensorData) {
-        log.debug("Sending anomaly analysis request: {}", sensorData);
+    public Map<String, Object> analyzeAnomaly(double latitude, double longitude,
+                                              Map<String, Object> sensorData,
+                                              Double speed, Double heading, String sessionId) {
+        log.debug("Sending anomaly analysis request for session {}", sessionId);
 
         try {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("sensor_data", sensorData);
+            payload.put("latitude", latitude);
+            payload.put("longitude", longitude);
+            if (speed != null) payload.put("speed", speed);
+            if (heading != null) payload.put("heading", heading);
+            if (sessionId != null) payload.put("session_id", sessionId);
+
             return webClient.post()
                     .uri("/api/v1/anomaly")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(sensorData)
+                    .bodyValue(payload)
                     .retrieve()
                     .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
                     .block();
@@ -126,23 +147,35 @@ public class AiServiceClient {
             maxAttemptsExpression = "#{@aiServiceConfig.maxRetries}",
             backoff = @Backoff(delayExpression = "#{@aiServiceConfig.retryDelayMs}")
     )
+    @SuppressWarnings("unchecked")
     public List<AiDetectionResult> batchDetect(List<String> imageUrls) {
         log.debug("Sending batch detection for {} images", imageUrls.size());
 
         try {
             Map<String, List<String>> request = Map.of("image_urls", imageUrls);
 
-            List<Map<String, Object>> responses = webClient.post()
+            Map<String, Object> response = webClient.post()
                     .uri("/api/v1/batch-detect")
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(request)
                     .retrieve()
-                    .bodyToMono(new ParameterizedTypeReference<List<Map<String, Object>>>() {})
+                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
                     .block();
 
-            return Optional.ofNullable(responses).orElse(List.of()).stream()
-                    .map(this::parseDetectionResult)
+            List<Object> results = response != null && response.get("results") instanceof List<?> list
+                    ? (List<Object>) list
+                    : List.of();
+            return results.stream()
+                    .filter(item -> item instanceof Map<?, ?>)
+                    .map(item -> parseDetectionResult((Map<String, Object>) item))
                     .toList();
+        } catch (WebClientResponseException e) {
+            if (e.getStatusCode().value() == 404) {
+                log.info("AI service detected no hazards in batch of {} images", imageUrls.size());
+                return List.of();
+            }
+            log.error("AI batch detection failed: {}", e.getMessage());
+            throw e;
         } catch (Exception e) {
             log.error("AI batch detection failed: {}", e.getMessage());
             throw e;
@@ -157,7 +190,8 @@ public class AiServiceClient {
                     .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
                     .block();
 
-            if (response != null && "ok".equals(response.get("status"))) {
+            String status = response != null ? (String) response.get("status") : null;
+            if ("ok".equals(status) || "healthy".equals(status)) {
                 log.debug("AI service health check passed");
                 return true;
             }
@@ -195,11 +229,23 @@ public class AiServiceClient {
 
     private BoundingBox parseBoundingBox(Map<String, Object> data) {
         if (data == null) return null;
+        if (data.containsKey("x_min") || data.containsKey("y_min")) {
+            double xMin = toDouble(data.get("x_min"));
+            double yMin = toDouble(data.get("y_min"));
+            double xMax = toDouble(data.get("x_max"));
+            double yMax = toDouble(data.get("y_max"));
+            return BoundingBox.builder()
+                    .x(xMin)
+                    .y(yMin)
+                    .width(xMax - xMin)
+                    .height(yMax - yMin)
+                    .build();
+        }
         return BoundingBox.builder()
-                .x(toInt(data.get("x")))
-                .y(toInt(data.get("y")))
-                .width(toInt(data.get("width")))
-                .height(toInt(data.get("height")))
+                .x(toDouble(data.get("x")))
+                .y(toDouble(data.get("y")))
+                .width(toDouble(data.get("width")))
+                .height(toDouble(data.get("height")))
                 .build();
     }
 
@@ -225,11 +271,5 @@ public class AiServiceClient {
         if (value instanceof Number n) return n.longValue();
         if (value instanceof String s) return Long.parseLong(s);
         return 0L;
-    }
-
-    private int toInt(Object value) {
-        if (value instanceof Number n) return n.intValue();
-        if (value instanceof String s) return Integer.parseInt(s);
-        return 0;
     }
 }

@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
-const tabsVariants = cva('', {
+export const tabsVariants = cva('', {
   variants: {
     variant: {
       underline: '',

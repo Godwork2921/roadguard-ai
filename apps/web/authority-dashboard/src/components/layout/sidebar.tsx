@@ -53,18 +53,12 @@ const menuItems: MenuItem[] = [
   { label: 'Analytics', icon: BarChart3, path: '/analytics' },
   { label: 'Notifications', icon: Bell, path: '/notifications', badge: 5 },
   { label: 'Settings', icon: Settings, path: '/settings' },
-  { label: 'Admin', icon: Shield, path: '/admin', children: [
-    { label: 'Dashboard', path: '/admin' },
-    { label: 'Users', path: '/admin/users' },
-    { label: 'Audit Log', path: '/admin/audit' },
-    { label: 'Configuration', path: '/admin/config' },
-  ]},
 ];
 
 function Sidebar({ collapsed, onToggle, isMobile, open, onClose }: SidebarProps) {
   const location = useLocation();
   const { user } = useAuth();
-  const [expandedMenus, setExpandedMenus] = React.useState<Set<string>>(new Set(['Admin']));
+  const [expandedMenus, setExpandedMenus] = React.useState<Set<string>>(new Set());
 
   const filteredMenuItems = React.useMemo(
     () => (user?.role === 'DRIVER' ? menuItems.filter((m) => m.label !== 'Dashboard') : menuItems),

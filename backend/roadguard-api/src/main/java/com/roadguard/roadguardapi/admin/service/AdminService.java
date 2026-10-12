@@ -7,6 +7,7 @@ import com.roadguard.roadguardapi.admin.repository.AuditLogRepository;
 import com.roadguard.roadguardapi.admin.repository.SystemConfigRepository;
 import com.roadguard.roadguardapi.hazard.entity.HazardStatus;
 import com.roadguard.roadguardapi.hazard.repository.HazardRepository;
+import com.roadguard.roadguardapi.integration.ai.AiServiceClient;
 import com.roadguard.roadguardapi.trip.entity.TripStatus;
 import com.roadguard.roadguardapi.trip.repository.TripRepository;
 import com.roadguard.roadguardapi.user.entity.UserRole;
@@ -43,6 +44,7 @@ public class AdminService {
     private final AuditLogRepository auditLogRepository;
     private final DataSource dataSource;
     private final Optional<RedisTemplate<String, Object>> redisTemplate;
+    private final AiServiceClient aiServiceClient;
 
     public AdminService(UserRepository userRepository,
                         TripRepository tripRepository,
@@ -50,7 +52,8 @@ public class AdminService {
                         SystemConfigRepository systemConfigRepository,
                         AuditLogRepository auditLogRepository,
                         DataSource dataSource,
-                        Optional<RedisTemplate<String, Object>> redisTemplate) {
+                        Optional<RedisTemplate<String, Object>> redisTemplate,
+                        AiServiceClient aiServiceClient) {
         this.userRepository = userRepository;
         this.tripRepository = tripRepository;
         this.hazardRepository = hazardRepository;
@@ -58,6 +61,7 @@ public class AdminService {
         this.auditLogRepository = auditLogRepository;
         this.dataSource = dataSource;
         this.redisTemplate = redisTemplate;
+        this.aiServiceClient = aiServiceClient;
     }
 
     @Transactional(readOnly = true)
@@ -215,17 +219,7 @@ public class AdminService {
     }
 
     private String checkAIService() {
-        try {
-            java.net.URL url = new java.net.URL("http://localhost:8501/health");
-            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) url.openConnection();
-            conn.setConnectTimeout(2000);
-            conn.setReadTimeout(2000);
-            int code = conn.getResponseCode();
-            conn.disconnect();
-            return code == 200 ? "UP" : "DEGRADED";
-        } catch (Exception e) {
-            return "DOWN";
-        }
+        return aiServiceClient.healthCheck() ? "UP" : "DOWN";
     }
 
     private String formatUptime(long uptimeMillis) {

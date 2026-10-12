@@ -83,7 +83,7 @@ function HazardMarker({
 }: HazardMarkerProps) {
   const colors = severityColors[severity];
   const Icon = hazardIcons[type];
-  const dims = sizes[size];
+  const dims = sizes[size]!;
 
   const isActive = status === 'DETECTED' || status === 'REPORTED';
   const isResolved = status === 'RESOLVED' || status === 'FIXED';
@@ -161,7 +161,6 @@ function HazardMarkerPopup({
   status,
   description,
   confidenceScore,
-  reportedAt,
   onClose,
   onViewDetails,
 }: {

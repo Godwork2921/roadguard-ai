@@ -15,6 +15,7 @@ def test_anomaly_sudden_brake():
         "longitude": -74.0060,
         "speed": 60.0,
         "heading": 90.0,
+        "session_id": "session-sudden-brake",
     }
     response = client.post("/api/v1/anomaly", json=payload)
     assert response.status_code == 200
@@ -33,6 +34,7 @@ def test_anomaly_no_anomaly():
         "longitude": -74.0060,
         "speed": 30.0,
         "heading": 90.0,
+        "session_id": "session-no-anomaly",
     }
     response = client.post("/api/v1/anomaly", json=payload)
     assert response.status_code == 200
@@ -50,6 +52,7 @@ def test_anomaly_hard_acceleration():
         "longitude": -74.0060,
         "speed": 40.0,
         "heading": 0.0,
+        "session_id": "session-hard-acceleration",
     }
     response = client.post("/api/v1/anomaly", json=payload)
     assert response.status_code == 200
@@ -59,6 +62,21 @@ def test_anomaly_hard_acceleration():
 
 
 def test_anomaly_sharp_turn():
+    session_id = "session-sharp-turn"
+    seed_payload = {
+        "sensor_data": {
+            "accelerometer": {"x": 0.0, "y": 2.0, "z": 9.8},
+            "gyroscope": {"x": 0.0, "y": 0.0, "z": 0.5},
+        },
+        "latitude": 40.7128,
+        "longitude": -74.0060,
+        "speed": 50.0,
+        "heading": 90.0,
+        "session_id": session_id,
+    }
+    seed_response = client.post("/api/v1/anomaly", json=seed_payload)
+    assert seed_response.status_code == 200
+
     payload = {
         "sensor_data": {
             "accelerometer": {"x": 0.0, "y": 2.0, "z": 9.8},
@@ -68,6 +86,7 @@ def test_anomaly_sharp_turn():
         "longitude": -74.0060,
         "speed": 50.0,
         "heading": 10.0,
+        "session_id": session_id,
     }
     response = client.post("/api/v1/anomaly", json=payload)
     assert response.status_code == 200
@@ -86,6 +105,7 @@ def test_anomaly_rough_road():
         "longitude": -74.0060,
         "speed": 25.0,
         "heading": 180.0,
+        "session_id": "session-rough-road",
     }
     response = client.post("/api/v1/anomaly", json=payload)
     assert response.status_code == 200

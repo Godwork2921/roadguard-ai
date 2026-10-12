@@ -8,19 +8,14 @@ import {
   Cloud,
   CheckCheck,
   CheckCircle2,
-  X,
-  Filter,
-  Clock,
   Info,
   Wrench,
   Zap,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PageContainer } from '@/components/layout/page-container';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
 import { cn, formatRelativeTime } from '@/lib/utils';
 import type { NotificationType, NotificationPriority } from '@/types';
 
@@ -49,7 +44,6 @@ const notificationTypes: Record<string, { icon: React.ElementType; color: string
 const generateNotifications = (): NotificationItem[] => {
   const notifications: NotificationItem[] = [];
   const now = Date.now();
-  const groups = ['Today', 'Yesterday', 'This Week', 'Earlier'];
 
   const items: Omit<NotificationItem, 'id' | 'dateGroup'>[] = [
     { type: 'HAZARD_ALERT', title: 'Critical hazard ahead', message: 'Flooding reported on River Road, 0.3 km ahead. Consider alternative route.', isRead: false, priority: 'URGENT', createdAt: new Date(now - 600000).toISOString() },
@@ -88,7 +82,7 @@ export default function NotificationsPage() {
     const groups: Record<string, NotificationItem[]> = {};
     filtered.forEach((n) => {
       if (!groups[n.dateGroup]) groups[n.dateGroup] = [];
-      groups[n.dateGroup].push(n);
+      groups[n.dateGroup]?.push(n);
     });
     return groups;
   }, [notifications, filter]);

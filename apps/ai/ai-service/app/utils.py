@@ -1,4 +1,5 @@
 import functools
+import inspect
 import logging
 import time
 from typing import Callable, Any
@@ -17,6 +18,18 @@ def setup_logging() -> None:
 
 
 def timeit(func: Callable) -> Callable:
+    if inspect.iscoroutinefunction(func):
+        @functools.wraps(func)
+        async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
+            start = time.perf_counter()
+            result = await func(*args, **kwargs)
+            elapsed = (time.perf_counter() - start) * 1000
+            logger = logging.getLogger(func.__module__)
+            logger.debug("%s took %.2f ms", func.__name__, elapsed)
+            return result
+
+        return async_wrapper
+
     @functools.wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         start = time.perf_counter()

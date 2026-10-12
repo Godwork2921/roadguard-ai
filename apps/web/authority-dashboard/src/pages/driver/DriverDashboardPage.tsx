@@ -11,7 +11,6 @@ import {
   Play,
   Route,
   ChevronRight,
-  Gauge,
   Car,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -21,8 +20,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AnimatedCounter } from '@/components/ui/animated-counter';
 import { PageContainer } from '@/components/layout/page-container';
-import { Separator } from '@/components/ui/separator';
-import { StatusDot } from '@/components/ui/status-dot';
 import { formatRelativeTime, cn } from '@/lib/utils';
 
 interface Stat {
@@ -180,7 +177,7 @@ export default function DriverDashboardPage() {
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="relative overflow-hidden rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 p-5 text-left text-white shadow-lg shadow-violet-500/25"
+                  className="relative overflow-hidden rounded-xl bg-gradient-to-br from-teal-500 to-cyan-600 p-5 text-left text-white shadow-lg shadow-teal-500/25"
                   onClick={() => navigate('/map')}
                 >
                   <div className="relative z-10">

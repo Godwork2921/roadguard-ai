@@ -5,14 +5,10 @@ import {
   Route,
   Search,
   AlertTriangle,
-  Shield,
   Clock,
   Navigation,
-  ChevronRight,
-  ChevronLeft,
   Loader2,
   MapPin,
-  Gauge,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,10 +17,9 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { RiskIndicator } from '@/components/ui/risk-indicator';
 import { PageContainer } from '@/components/layout/page-container';
-import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
-import RouteMap from '@/components/map/RouteMap';
-import { geocode, getRoute, geocodeSuggestions } from '@/lib/routing';
+import RouteMap from '@/components/map/route-map';
+import { geocode, getRoute } from '@/lib/routing';
 
 interface RouteResult {
   riskScore: number;
@@ -95,16 +90,6 @@ const historyData = [
   { id: '5', start: 'Ayat', dest: 'CMC', riskScore: 8, date: 'Yesterday' },
 ];
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.06 } },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 16 },
-  show: { opacity: 1, y: 0 },
-};
-
 export default function RouteAnalysisPage() {
   const [start, setStart] = React.useState('');
   const [dest, setDest] = React.useState('');
@@ -155,10 +140,12 @@ export default function RouteAnalysisPage() {
 
       setRoutePoints(routeData.main.points);
       setAltRoutes(routeData.alternatives);
-      const hazPos = mockResult.hazards.map((h) => {
+      const hazPos: { lat: number; lng: number; type: string; severity: string }[] = [];
+      mockResult.hazards.forEach((h) => {
         const idx = Math.floor((routeData.main.points.length - 1) * (0.2 + Math.random() * 0.6));
-        const p = routeData.main.points[Math.min(idx, routeData.main.points.length - 1)] || routeData.main.points[0];
-        return { lat: p[0], lng: p[1], type: h.type, severity: h.severity };
+        const p = routeData.main.points[Math.min(idx, routeData.main.points.length - 1)] ?? routeData.main.points[0];
+        if (!p) return;
+        hazPos.push({ lat: p[0], lng: p[1], type: h.type, severity: h.severity });
       });
       setHazardPositions(hazPos);
       setResult({

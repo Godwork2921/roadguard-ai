@@ -18,8 +18,8 @@ function getSystemTheme(): 'light' | 'dark' {
 }
 
 function getStoredTheme(): Theme {
-  if (typeof window === 'undefined') return 'system';
-  return (localStorage.getItem(STORAGE_KEY) as Theme) ?? 'system';
+  if (typeof window === 'undefined') return 'light';
+  return (localStorage.getItem(STORAGE_KEY) as Theme) ?? 'light';
 }
 
 function applyTheme(resolved: 'light' | 'dark') {
